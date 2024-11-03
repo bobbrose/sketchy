@@ -1,1 +1,1 @@
-Sketch - an app to make images
+Sketch - React app to make images
