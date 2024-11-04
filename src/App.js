@@ -6,23 +6,65 @@ import './App.css';
 function App() {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
+    console.log('API Key (first 5 chars):', apiKey ? apiKey.substring(0, 5) : 'Not set');
+
     try {
-      const response = await axios.post('https://api.openai.com/v1/images/generations', {
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024"
-      }, {
+      // First, test the models endpoint
+      const modelsResponse = await axios.get('https://api.openai.com/v1/models', {
         headers: {
-          'Authorization': `Bearer YOUR_API_KEY_HERE`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${apiKey}`
         }
       });
-      setImage(response.data.data[0].url);
+      console.log('Models retrieval successful', modelsResponse.data);
+
+      // Now, proceed with image generation
+      const requestBody = {
+        prompt: prompt,
+        model: "dall-e-3",
+        n: 1,
+        size: "1024x1024"
+      };
+      console.log('Image generation request body:', requestBody);
+
+      const imageResponse = await axios.post('https://api.openai.com/v1/images/generations', 
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      console.log('Image generation response:', imageResponse.data);
+      setImage(imageResponse.data.data[0].url);
     } catch (error) {
-      console.error('Error generating image:', error);
+      console.error('Error object:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+        if (error.response.data && error.response.data.error) {
+          setError(`API Error: ${error.response.data.error.message}`);
+        } else {
+          setError('Failed to generate image. Please check the console for more details.');
+        }
+      } else if (error.request) {
+        console.error('Error request:', error.request);
+        setError('No response received from the server. Please try again.');
+      } else {
+        console.error('Error message:', error.message);
+        setError('An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -35,10 +77,14 @@ function App() {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Enter your prompt here..."
           />
-          <button type="submit">Generate Image</button>
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? 'Generating...' : 'Generate Image'}
+          </button>
         </form>
       </div>
       <div className="panel right-panel">
+        {error && <p className="error">{error}</p>}
+        {isLoading && <p>Generating image...</p>}
         {image ? (
           <img src={image} alt="Generated content" />
         ) : (
