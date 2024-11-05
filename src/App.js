@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 import './App.css';
@@ -6,68 +6,45 @@ import './App.css';
 function App() {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [gallery, setGallery] = useState([]);
+
+  useEffect(() => {
+    fetchGallery();
+  }, []);
+
+  const fetchGallery = async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/gallery');
+      setGallery(response.data);
+    } catch (error) {
+      console.error('Error fetching gallery:', error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError(null);
-    setIsLoading(true);
-    const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-    console.log('API Key (first 5 chars):', apiKey ? apiKey.substring(0, 5) : 'Not set');
-
+    console.log('Sending request with prompt:', prompt);
     try {
-      // First, test the models endpoint
-      const modelsResponse = await axios.get('https://api.openai.com/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-      console.log('Models retrieval successful', modelsResponse.data);
-
-      // Now, proceed with image generation
-      const requestBody = {
-        prompt: prompt,
-        model: "dall-e-3",
-        n: 1,
-        size: "1024x1024"
-      };
-      console.log('Image generation request body:', requestBody);
-
-      const imageResponse = await axios.post('https://api.openai.com/v1/images/generations', 
-        requestBody,
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      console.log('Image generation response:', imageResponse.data);
-      setImage(imageResponse.data.data[0].url);
+      const response = await axios.post('http://localhost:3001/generate-image', { prompt });
+      console.log('Received response:', response.data);
+      setImage(response.data.imageUrl);
+      fetchGallery(); // Refresh the gallery after generating a new image
     } catch (error) {
-      console.error('Error object:', error);
-      if (error.response) {
-        console.error('Error response data:', error.response.data);
-        console.error('Error response status:', error.response.status);
-        console.error('Error response headers:', error.response.headers);
-        if (error.response.data && error.response.data.error) {
-          setError(`API Error: ${error.response.data.error.message}`);
-        } else {
-          setError('Failed to generate image. Please check the console for more details.');
-        }
-      } else if (error.request) {
-        console.error('Error request:', error.request);
-        setError('No response received from the server. Please try again.');
-      } else {
-        console.error('Error message:', error.message);
-        setError('An unexpected error occurred. Please try again.');
-      }
+      console.error('Error generating image:', error.response ? error.response.data : error.message);
+      setError('Failed to generate image. Please try again.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
+
+  const handleGalleryItemClick = (item) => {
+    setPrompt(item.prompt);
+    setImage(item.imageUrl);
+  };
   return (
     <div className="App">
       <div className="panel left-panel">
@@ -77,19 +54,30 @@ function App() {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Enter your prompt here..."
           />
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Generating...' : 'Generate Image'}
+          <button type="submit" disabled={loading}>
+            {loading ? 'Generating...' : 'Generate Image'}
           </button>
         </form>
+        <div className="gallery">
+          <h2>Gallery</h2>
+          {gallery.map((item, index) => (
+            <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
+              <p>{item.prompt}</p>
+              <img src={item.imageUrl} alt={item.prompt} />
+            </div>
+          ))}
+        </div>
       </div>
       <div className="panel right-panel">
+        {loading && <p>Generating image...</p>}
         {error && <p className="error">{error}</p>}
-        {isLoading && <p>Generating image...</p>}
-        {image ? (
-          <img src={image} alt="Generated content" />
-        ) : (
-          <p>Your generated image will appear here</p>
+        {image && !loading && (
+          <div>
+            <img src={image} alt="Generated content" />
+            <button onClick={handleSubmit}>Regenerate</button>
+          </div>
         )}
+        {!image && !loading && !error && <p>Your generated image will appear here</p>}
       </div>
     </div>
   );
