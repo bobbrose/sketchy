@@ -1,16 +1,23 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+
+// Serve static files from the 'images' directory
+app.use('/images', express.static('images'));
+
 // In-memory storage (replace with a database in a production environment)
 let gallery = [];
 
 app.post('/generate-image', async (req, res) => {
+  console.log('Received request with prompt:', req.body.prompt);
   try {
     const response = await axios.post('https://api.openai.com/v1/images/generations', {
       prompt: req.body.prompt,
@@ -23,15 +30,27 @@ app.post('/generate-image', async (req, res) => {
       }
     });
     
+    console.log('OpenAI API response:', response.data);
     const imageUrl = response.data.data[0].url;
     
-    // Save the prompt and image URL to the gallery
-    gallery.push({ prompt: req.body.prompt, imageUrl });
+    // Download the image
+    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(imageResponse.data, 'binary');
     
-    res.json({ imageUrl });
+    // Save the image locally
+    const imageName = `image_${Date.now()}.png`;
+    const imagePath = path.join(__dirname, 'images', imageName);
+    fs.writeFileSync(imagePath, buffer);
+    
+    // Use the local path for the image URL
+    const localImageUrl = `/images/${imageName}`;
+    
+    gallery.push({ prompt: req.body.prompt, imageUrl: localImageUrl });
+    
+    res.json({ imageUrl: localImageUrl });
   } catch (error) {
-    console.error('Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to generate image' });
+    console.error('Error details:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Failed to generate image', details: error.response ? error.response.data : error.message });
   }
 });
 

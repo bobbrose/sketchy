@@ -23,6 +23,9 @@
 
 .left-panel {
   background-color: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .right-panel {
@@ -33,11 +36,11 @@
 form {
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 textarea {
-  flex: 1;
+  height: 120px; /* Approximately 6 lines of text */
+  resize: none;
   margin-bottom: 10px;
   padding: 10px;
   font-size: 16px;
@@ -62,17 +65,25 @@ img {
 }
 
 .gallery {
-  margin-top: 20px;
-  max-height: 300px;
+  flex-grow: 1;
   overflow-y: auto;
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 4px;
+  padding: 10px;
 }
 
 .gallery-item {
   cursor: pointer;
-  margin-bottom: 10px;
-  padding: 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  padding: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  aspect-ratio: 1 / 1;
 }
 
 .gallery-item:hover {
@@ -80,11 +91,22 @@ img {
 }
 
 .gallery-item img {
-  max-width: 100px;
-  max-height: 100px;
+  width: 100%;
+  height: calc(100% - 1.8em); /* Subtract approximate height of 2 lines of text */
   object-fit: cover;
 }
 
+.gallery-item p {
+  margin: 0;
+  font-size: 0.7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-height: 1.8em; /* Approximately 2 lines of text */
+  width: 100%;
+}
 .right-panel button {
   margin-top: 10px;
 }

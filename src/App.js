@@ -3,6 +3,8 @@ import axios from 'axios';
 
 import './App.css';
 
+const API_BASE_URL = 'http://localhost:3001';
+
 function App() {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState(null);
@@ -16,7 +18,7 @@ function App() {
 
   const fetchGallery = async () => {
     try {
-      const response = await axios.get('http://localhost:3001/gallery');
+      const response = await axios.get(`${API_BASE_URL}/gallery`);
       setGallery(response.data);
     } catch (error) {
       console.error('Error fetching gallery:', error);
@@ -29,7 +31,7 @@ function App() {
     setError(null);
     console.log('Sending request with prompt:', prompt);
     try {
-      const response = await axios.post('http://localhost:3001/generate-image', { prompt });
+      const response = await axios.post(`${API_BASE_URL}/generate-image`, { prompt });
       console.log('Received response:', response.data);
       setImage(response.data.imageUrl);
       fetchGallery(); // Refresh the gallery after generating a new image
@@ -45,6 +47,7 @@ function App() {
     setPrompt(item.prompt);
     setImage(item.imageUrl);
   };
+
   return (
     <div className="App">
       <div className="panel left-panel">
@@ -59,11 +62,10 @@ function App() {
           </button>
         </form>
         <div className="gallery">
-          <h2>Gallery</h2>
           {gallery.map((item, index) => (
             <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
+              <img src={`${API_BASE_URL}${item.imageUrl}`} alt={item.prompt} />
               <p>{item.prompt}</p>
-              <img src={item.imageUrl} alt={item.prompt} />
             </div>
           ))}
         </div>
@@ -73,7 +75,7 @@ function App() {
         {error && <p className="error">{error}</p>}
         {image && !loading && (
           <div>
-            <img src={image} alt="Generated content" />
+            <img src={`${API_BASE_URL}${image}`} alt="Generated content" />
             <button onClick={handleSubmit}>Regenerate</button>
           </div>
         )}
