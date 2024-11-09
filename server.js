@@ -3,6 +3,7 @@ const axios = require('axios');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { createCanvas } = require('canvas');
 require('dotenv').config();
 
 const app = express();
@@ -16,34 +17,68 @@ app.use('/images', express.static('images'));
 // In-memory storage (replace with a database in a production environment)
 let gallery = [];
 
+// Environment variable to switch between mock and real API
+const USE_MOCK_API = process.env.USE_MOCK_API === 'true';
+
+// Mock image generation function
+function generateMockImage(prompt) {
+  const mockImageName = `mock_image_${Date.now()}.png`;
+  const mockImagePath = path.join(__dirname, 'images', mockImageName);
+  
+  const canvas = createCanvas(1024, 1024);
+  const ctx = canvas.getContext('2d');
+
+  // Fill background with random color
+  ctx.fillStyle = `#${Math.floor(Math.random()*16777215).toString(16)}`;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Add text
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Mock Image: ${prompt}`, 512, 512);
+
+  const buffer = canvas.toBuffer('image/png');
+  fs.writeFileSync(mockImagePath, buffer);
+
+  return `/images/${mockImageName}`;
+}
+
+// Real API call function
+async function generateRealImage(prompt) {
+  const response = await axios.post('https://api.openai.com/v1/images/generations', {
+    prompt: prompt,
+    n: 1,
+    size: "1024x1024"
+  }, {
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  const imageUrl = response.data.data[0].url;
+  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+  const buffer = Buffer.from(imageResponse.data, 'binary');
+  
+  const imageName = `image_${Date.now()}.png`;
+  const imagePath = path.join(__dirname, 'images', imageName);
+  fs.writeFileSync(imagePath, buffer);
+  
+  return `/images/${imageName}`;
+}
+
 app.post('/generate-image', async (req, res) => {
   console.log('Received request with prompt:', req.body.prompt);
   try {
-    const response = await axios.post('https://api.openai.com/v1/images/generations', {
-      prompt: req.body.prompt,
-      n: 1,
-      size: "1024x1024"
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('OpenAI API response:', response.data);
-    const imageUrl = response.data.data[0].url;
-    
-    // Download the image
-    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(imageResponse.data, 'binary');
-    
-    // Save the image locally
-    const imageName = `image_${Date.now()}.png`;
-    const imagePath = path.join(__dirname, 'images', imageName);
-    fs.writeFileSync(imagePath, buffer);
-    
-    // Use the local path for the image URL
-    const localImageUrl = `/images/${imageName}`;
+    let localImageUrl;
+    if (USE_MOCK_API) {
+      console.log('Using mock API');
+      localImageUrl = generateMockImage(req.body.prompt);
+    } else {
+      console.log('Using real API');
+      localImageUrl = await generateRealImage(req.body.prompt);
+    }
     
     gallery.push({ prompt: req.body.prompt, imageUrl: localImageUrl });
     
