@@ -18,7 +18,7 @@ app.use('/images', express.static('images'));
 let gallery = [];
 
 // Environment variable to switch between mock and real API
-const USE_MOCK_API = process.env.USE_MOCK_API === 'true';
+const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
 
 // Mock image generation function
 function generateMockImage(prompt) {
@@ -72,12 +72,13 @@ app.post('/generate-image', async (req, res) => {
   console.log('Received request with prompt:', req.body.prompt);
   try {
     let localImageUrl;
-    if (USE_MOCK_API) {
+    if (USE_OPENAI_API) {
+      console.log('Using OpenAI API');
+      localImageUrl = await generateRealImage(req.body.prompt);
+    } else {
       console.log('Using mock API');
       localImageUrl = generateMockImage(req.body.prompt);
-    } else {
-      console.log('Using real API');
-      localImageUrl = await generateRealImage(req.body.prompt);
+
     }
     
     gallery.push({ prompt: req.body.prompt, imageUrl: localImageUrl });

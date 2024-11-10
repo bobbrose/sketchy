@@ -26,6 +26,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 }
 
 .right-panel {
@@ -70,7 +71,7 @@ img {
   margin-top: 20px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 4px;
+  gap: 10px;
   padding: 10px;
 }
 
@@ -78,7 +79,7 @@ img {
   cursor: pointer;
   border: 1px solid #ddd;
   border-radius: 4px;
-  padding: 2px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -92,19 +93,18 @@ img {
 
 .gallery-item img {
   width: 100%;
-  height: calc(100% - 1.8em); /* Subtract approximate height of 2 lines of text */
   object-fit: cover;
 }
 
 .gallery-item p {
-  margin: 0;
-  font-size: 0.7em;
+  margin: 5px 0 0 0;
+  font-size: 0.8em;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  max-height: 1.8em; /* Approximately 2 lines of text */
+  max-height: 2.4em; /* Approximately 2 lines of text */
   width: 100%;
 }
 .right-panel button {
