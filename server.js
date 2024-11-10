@@ -18,6 +18,14 @@ app.use('/images', express.static('images'));
 let gallery = [];
 
 // Environment variable to switch between mock and real API
+// Function to log gallery contents
+function logGallery() {
+  console.log('Current gallery contents:');
+  gallery.forEach((item, index) => {
+    console.log(`${index + 1}. Prompt: "${item.prompt}", Image: ${item.imageUrl}`);
+  });
+  console.log('Total items in gallery:', gallery.length);
+}
 const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
 
 // Mock image generation function
@@ -82,7 +90,8 @@ app.post('/generate-image', async (req, res) => {
     }
     
     gallery.push({ prompt: req.body.prompt, imageUrl: localImageUrl });
-    
+    console.log('Image generated and added to gallery');
+    logGallery();
     res.json({ imageUrl: localImageUrl });
   } catch (error) {
     console.error('Error details:', error.response ? error.response.data : error.message);
@@ -91,6 +100,8 @@ app.post('/generate-image', async (req, res) => {
 });
 
 app.get('/gallery', (req, res) => {
+  console.log('Gallery requested');
+  logGallery();
   res.json(gallery);
 });
 
