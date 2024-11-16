@@ -55,16 +55,18 @@ function generateMockImage(prompt) {
 // Real API call function
 async function generateRealImage(prompt) {
   const response = await axios.post('https://api.openai.com/v1/images/generations', {
+    model: "dall-e-3",  // Specify the latest DALL-E model
     prompt: prompt,
     n: 1,
-    size: "1024x1024"
+    size: "1024x1024",
+    quality: "standard"  // You can change this to "hd" for higher quality
   }, {
     headers: {
       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       'Content-Type': 'application/json'
     }
   });
-  
+  console.log('Response from OpenAI API:', response.data);
   const imageUrl = response.data.data[0].url;
   const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
   const buffer = Buffer.from(imageResponse.data, 'binary');
@@ -86,12 +88,11 @@ app.post('/generate-image', async (req, res) => {
     } else {
       console.log('Using mock API');
       localImageUrl = generateMockImage(req.body.prompt);
-
     }
     
     gallery.push({ prompt: req.body.prompt, imageUrl: localImageUrl });
-    console.log('Image generated and added to gallery');
-    logGallery();
+    //console.log('Image generated and added to gallery');
+    //logGallery();
     res.json({ imageUrl: localImageUrl });
   } catch (error) {
     console.error('Error details:', error.response ? error.response.data : error.message);
@@ -101,7 +102,7 @@ app.post('/generate-image', async (req, res) => {
 
 app.get('/gallery', (req, res) => {
   console.log('Gallery requested');
-  logGallery();
+  //logGallery();
   res.json(gallery);
 });
 
