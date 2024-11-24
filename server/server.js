@@ -1,10 +1,16 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const { createCanvas } = require('canvas');
-require('dotenv').config();
+import express from 'express';
+import axios from 'axios';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { createCanvas } from 'canvas';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
