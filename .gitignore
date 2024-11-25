@@ -33,7 +33,10 @@ yarn-error.log*
 
 # Ignore generated images
 /server/images
+
 # Ignore build directories
 /build
 /dist
 /out
+
+.vscode/settings.json
