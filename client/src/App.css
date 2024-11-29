@@ -107,6 +107,22 @@ img {
   max-height: 2.4em; /* Approximately 2 lines of text */
   width: 100%;
 }
+
+.share-button {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.share-message {
+  margin-top: 10px;
+  font-style: italic;
+}
+
 .right-panel button {
   margin-top: 10px;
 }

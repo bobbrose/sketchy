@@ -11,6 +11,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [gallery, setGallery] = useState([]);
+  const [shareMessage, setShareMessage] = useState('');
 
    // Check if the COMING_SOON variable is true, if so show a coming soon page.
    const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
@@ -57,6 +58,17 @@ function App() {
     setImage(item.imageUrl);
   };
 
+  const handleShare = () => {
+    const imageUrl = `${API_BASE_URL}${image}`;
+    navigator.clipboard.writeText(imageUrl).then(() => {
+      setShareMessage('Image URL copied to clipboard!');
+      setTimeout(() => setShareMessage(''), 3000); // Clear message after 3 seconds
+    }, (err) => {
+      console.error('Could not copy text: ', err);
+      setShareMessage('Failed to copy URL. Please try again.');
+    });
+  };
+
   return (
     <div className="App">
       <div className="panel left-panel">
@@ -85,7 +97,8 @@ function App() {
         {image && !loading && (
           <div>
             <img src={`${API_BASE_URL}${image}`} alt="Generated content" />
-            <button onClick={handleSubmit}>Regenerate</button>
+            <button onClick={handleShare}>Share Image</button>
+            {shareMessage && <p>{shareMessage}</p>}
           </div>
         )}
         {!image && !loading && !error && <p>Your generated image will appear here</p>}
