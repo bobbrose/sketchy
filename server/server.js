@@ -91,7 +91,7 @@ app.post('/generate-image', async (req, res) => {
     // Generate prompt using ChatGPT
     let generatedPrompt;
     if (USE_OPENAI_API) {
-      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or artist: "${prompt}". The description should be describe the song or artist in vivid detail with speciifc references to the song or something distinctive about the artist so an image can be generated from the description.`;
+      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or artist: "${prompt}". The description should be describe the song or artist in vivid detail with speciifc references to the song or something distinctive about the artist so an image can be generated from the description. If there is an iconic logo or visual reference for the band, include that in the image.`;
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: wrappedPrompt }],
