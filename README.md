@@ -1,7 +1,8 @@
-Sketchy - React app to make image from a song or artist.
+Sketchy - React app to make an image from a song or artist.
 
 Uses OpenAI API to generate a specific prompt that is tailored to music and then creates the image from that prompt.
 
+Used AugmentCode as coding assistant to write most of the code for the server and client.
 
 ## Setup Instructions
 
