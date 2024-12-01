@@ -7,7 +7,9 @@ const API_BASE_URL = 'http://localhost:3001';
 
 function App() {
   const [prompt, setPrompt] = useState('');
+  const [originalPrompt, setOriginalPrompt] = useState('');
   const [image, setImage] = useState(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [gallery, setGallery] = useState([]);
@@ -39,14 +41,15 @@ function App() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    console.log('Sending request with prompt:', prompt);
+    setGeneratedPrompt('');
     try {
       const response = await axios.post(`${API_BASE_URL}/generate-image`, { prompt });
-      console.log('Received response:', response.data);
       setImage(response.data.imageUrl);
-      fetchGallery(); // Refresh the gallery after generating a new image
+      setGeneratedPrompt(response.data.generatedPrompt);
+      setOriginalPrompt(response.data.originalPrompt); // Set the original prompt
+      fetchGallery();
     } catch (error) {
-      console.error('Error generating image:', error.response ? error.response.data : error.message);
+      console.error('Error generating image:', error);
       setError('Failed to generate image. Please try again.');
     } finally {
       setLoading(false);
@@ -73,20 +76,21 @@ function App() {
     <div className="App">
       <div className="panel left-panel">
         <form onSubmit={handleSubmit}>
-          <textarea
+          <input
+            type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Enter your prompt here..."
+            placeholder="Enter a song or artist..."
           />
           <button type="submit" disabled={loading}>
-            {loading ? 'Generating...' : 'Generate Image'}
+            {loading ? 'Generating...' : 'Generate Soundscape'}
           </button>
         </form>
         <div className="gallery">
           {gallery.map((item, index) => (
             <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
-              <img src={`${API_BASE_URL}${item.imageUrl}`} alt={item.prompt} />
-              <p>{item.prompt}</p>
+              <img src={`${API_BASE_URL}${item.imageUrl}`} alt={item.originalPrompt} />
+              <p>{item.originalPrompt}</p>
             </div>
           ))}
         </div>
@@ -97,6 +101,12 @@ function App() {
         {image && !loading && (
           <div>
             <img src={`${API_BASE_URL}${image}`} alt="Generated content" />
+            {generatedPrompt && (
+              <div className="generated-prompt">
+                <h3>Generated prompt from: "{originalPrompt}"</h3>
+                <p>{generatedPrompt}</p>
+              </div>
+            )}
             <button onClick={handleShare}>Share Image</button>
             {shareMessage && <p>{shareMessage}</p>}
           </div>

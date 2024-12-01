@@ -1,11 +1,13 @@
 import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
-import { createCanvas } from 'canvas';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { OpenAI } from 'openai';
+import fs from 'fs/promises';
+import { createCanvas } from 'canvas';
 
 dotenv.config();
 
@@ -16,100 +18,130 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
 // Serve static files from the 'images' directory
 app.use('/images', express.static('images'));
 
-// In-memory storage (replace with a database in a production environment)
-let gallery = [];
+// Initialize OpenAI API client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Environment variable to switch between mock and real API
-// Function to log gallery contents
-function logGallery() {
-  console.log('Current gallery contents:');
-  gallery.forEach((item, index) => {
-    console.log(`${index + 1}. Prompt: "${item.prompt}", Image: ${item.imageUrl}`);
-  });
-  console.log('Total items in gallery:', gallery.length);
-}
 const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
 
-// Mock image generation function
-function generateMockImage(prompt) {
-  const mockImageName = `mock_image_${Date.now()}.png`;
-  const mockImagePath = path.join(__dirname, 'images', mockImageName);
-  
-  const canvas = createCanvas(1024, 1024);
-  const ctx = canvas.getContext('2d');
+// Ensure the 'images' directory exists
+const imagesDir = path.join(__dirname, 'images');
+fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
 
-  // Fill background with random color
-  ctx.fillStyle = `#${Math.floor(Math.random()*16777215).toString(16)}`;
-  ctx.fillRect(0, 0, 1024, 1024);
+// In-memory storage for gallery items
+let galleryItems = [];
 
-  // Add text
-  ctx.fillStyle = 'white';
-  ctx.font = '20px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(`Mock Image: ${prompt}`, 512, 512);
+async function saveImage(imageUrl, imageId) {
+  try {
+    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data, 'binary');
 
-  const buffer = canvas.toBuffer('image/png');
-  fs.writeFileSync(mockImagePath, buffer);
+    const imageName = `${imageId}.png`;
+    const imagePath = path.join(__dirname, 'images', imageName);
+    await fs.writeFile(imagePath, buffer);
 
-  return `/images/${mockImageName}`;
+    return `/images/${imageName}`;
+  } catch (error) {
+    console.error('Error saving image:', error);
+    throw new Error('Failed to save image');
+  }
 }
 
-// Real API call function
-async function generateRealImage(prompt) {
-  const response = await axios.post('https://api.openai.com/v1/images/generations', {
-    model: "dall-e-3",  // Specify the latest DALL-E model
-    prompt: prompt,
-    n: 1,
-    size: "1024x1024",
-    quality: "standard"  // You can change this to "hd" for higher quality
-  }, {
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  console.log('Response from OpenAI API:', response.data);
-  const imageUrl = response.data.data[0].url;
-  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-  const buffer = Buffer.from(imageResponse.data, 'binary');
-  
-  const imageName = `image_${Date.now()}.png`;
+function generateMockImage(prompt) {
+  const canvas = createCanvas(500, 500);
+  const ctx = canvas.getContext('2d');
+
+  // Generate random colors
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+
+  // Fill the canvas with the random color
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(0, 0, 500, 500);
+
+  // Add some text to the canvas
+  ctx.font = '20px Arial';
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Mock: ${prompt}`, 250, 250);
+
+  // Convert canvas to buffer
+  const buffer = canvas.toBuffer('image/png');
+
+  // Save the buffer to a file
+  const imageId = uuidv4();
+  const imageName = `${imageId}.png`;
   const imagePath = path.join(__dirname, 'images', imageName);
-  fs.writeFileSync(imagePath, buffer);
-  
+  fs.writeFile(imagePath, buffer).catch(console.error);
+
   return `/images/${imageName}`;
 }
 
 app.post('/generate-image', async (req, res) => {
-  console.log('Received request with prompt:', req.body.prompt);
+  const { prompt } = req.body;
+
   try {
-    let localImageUrl;
+
+    // Generate prompt using ChatGPT
+    let generatedPrompt;
     if (USE_OPENAI_API) {
-      console.log('Using OpenAI API');
-      localImageUrl = await generateRealImage(req.body.prompt);
+      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or artist: "${prompt}". The description should be describe the song or artist in vivid detail with speciifc references to the song or something distinctive about the artist so an image can be generated from the description.`;
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: wrappedPrompt }],
+      });
+
+      generatedPrompt = completion.choices[0].message.content.trim();
+      console.log('Generated prompt:', generatedPrompt);
     } else {
-      console.log('Using mock API');
-      localImageUrl = generateMockImage(req.body.prompt);
+      generatedPrompt = prompt;
     }
-    
-    gallery.push({ prompt: req.body.prompt, imageUrl: localImageUrl });
-    //console.log('Image generated and added to gallery');
-    //logGallery();
-    res.json({ imageUrl: localImageUrl });
+
+    let imageUrl;
+    if (USE_OPENAI_API) {
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: generatedPrompt,
+        n: 1,
+        size: "1024x1024",
+      });
+      imageUrl = response.data[0].url;
+      const imageId = uuidv4();
+      imageUrl = await saveImage(imageUrl, imageId);
+    } else {
+      imageUrl = generateMockImage(generatedPrompt);
+    }
+
+    const metadata = {
+      originalPrompt: prompt,
+      generatedPrompt: generatedPrompt,
+      imageUrl: imageUrl,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add to gallery
+    galleryItems.push(metadata);
+
+    res.json({ 
+      imageUrl: imageUrl, 
+      generatedPrompt: generatedPrompt,
+      originalPrompt: prompt 
+    });
   } catch (error) {
-    console.error('Error details:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to generate image', details: error.response ? error.response.data : error.message });
+    console.error('Error generating image:', error);
+    res.status(500).json({ error: 'Failed to generate image', details: error.message });
   }
 });
 
+// Gallery endpoint
 app.get('/gallery', (req, res) => {
-  console.log('Gallery requested');
-  //logGallery();
-  res.json(gallery);
+  res.json(galleryItems);
 });
 
 const PORT = process.env.PORT || 3001;
