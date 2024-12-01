@@ -103,7 +103,7 @@ function App() {
             <img src={`${API_BASE_URL}${image}`} alt="Generated content" />
             {generatedPrompt && (
               <div className="generated-prompt">
-                <h3>Generated prompt from: "{originalPrompt}"</h3>
+                <h3>Inspired from: "{originalPrompt}"</h3>
                 <p>{generatedPrompt}</p>
               </div>
             )}
