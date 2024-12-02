@@ -4,6 +4,8 @@ React app to make an image from a song or artist.
 
 Uses OpenAI API to generate a specific prompt that is tailored to music and then creates the image from that prompt.
 
+A learning project from [Bob Rose](https://bobbrose.com)
+
 ## Setup Instructions
 
 To try Sketchy:
