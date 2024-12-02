@@ -29,12 +29,12 @@ To try Sketchy:
    USE_OPENAI_API=true
    ```
 
-5. Start the backend server in the 'server' directory:
+5. Start the backend server:
    ```
    npm run server
    ```
 
-6. In a new terminal, start the React development server in the 'client' directory:
+6. In a new terminal, start the React development server:
    ```
    npm run client
    ```
