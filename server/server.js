@@ -7,7 +7,6 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
-import { createCanvas } from 'canvas';
 
 dotenv.config();
 
@@ -48,45 +47,28 @@ async function saveImage(imageUrl, imageId) {
     const imagePath = path.join(imagesDir, imageName);
     await fs.writeFile(imagePath, buffer);
 
-    return `/images/${imageName}`;
+    return `/api/images/${imageName}`;
   } catch (error) {
     console.error('Error saving image:', error);
     throw new Error('Failed to save image');
   }
 }
 
-function generateMockImage(prompt) {
-  const canvas = createCanvas(500, 500);
-  const ctx = canvas.getContext('2d');
-
-  // Generate random colors
-  const r = Math.floor(Math.random() * 256);
-  const g = Math.floor(Math.random() * 256);
-  const b = Math.floor(Math.random() * 256);
-
-  // Fill the canvas with the random color
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0, 0, 500, 500);
-
-  // Add some text to the canvas
-  ctx.font = '20px Arial';
-  ctx.fillStyle = 'white';
-  ctx.textAlign = 'center';
-  ctx.fillText(`Mock: ${prompt}`, 250, 250);
-
-  // Convert canvas to buffer
-  const buffer = canvas.toBuffer('image/png');
-
-  // Save the buffer to a file
+async function generateMockImage(prompt) {
+  // Generate a colorful placeholder image using a third-party service
   const imageId = uuidv4();
-  const imageName = `${imageId}.png`;
-  const imagePath = path.join(imagesDir, imageName);
-  fs.writeFile(imagePath, buffer).catch(console.error);
-
-  return `/images/${imageName}`;
+  const mockImageUrl = `https://placehold.co/600x400/random/white?text=${encodeURIComponent(prompt)}`;
+  
+  try {
+    const savedImagePath = await saveImage(mockImageUrl, imageId);
+    return savedImagePath;
+  } catch (error) {
+    console.error('Error generating mock image:', error);
+    throw new Error('Failed to generate mock image');
+  }
 }
 
-app.post('/api/generate-image', async (req, res) => {
+app.post('/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
   try {
