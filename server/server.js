@@ -18,20 +18,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from the 'images' directory
-app.use('/images', express.static('images'));
+// Change images directory to use /tmp in production
+const imagesDir = process.env.NODE_ENV === 'production' 
+  ? '/tmp/sketchy-images'
+  : path.join(__dirname, 'images');
+
+// Ensure the images directory exists
+fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
+
+// Serve static files from the images directory
+app.use('/images', express.static(imagesDir));
 
 // Initialize OpenAI API client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Environment variable to switch between mock and real API
 const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
-
-// Ensure the 'images' directory exists
-const imagesDir = path.join(__dirname, 'images');
-fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
 
 // In-memory storage for gallery items
 let galleryItems = [];
@@ -42,7 +45,7 @@ async function saveImage(imageUrl, imageId) {
     const buffer = Buffer.from(response.data, 'binary');
 
     const imageName = `${imageId}.png`;
-    const imagePath = path.join(__dirname, 'images', imageName);
+    const imagePath = path.join(imagesDir, imageName);
     await fs.writeFile(imagePath, buffer);
 
     return `/images/${imageName}`;
@@ -77,7 +80,7 @@ function generateMockImage(prompt) {
   // Save the buffer to a file
   const imageId = uuidv4();
   const imageName = `${imageId}.png`;
-  const imagePath = path.join(__dirname, 'images', imageName);
+  const imagePath = path.join(imagesDir, imageName);
   fs.writeFile(imagePath, buffer).catch(console.error);
 
   return `/images/${imageName}`;
@@ -144,5 +147,11 @@ app.get('/gallery', (req, res) => {
   res.json(galleryItems);
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Export for Vercel
+export default app;
+
+// Start server only in development
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
