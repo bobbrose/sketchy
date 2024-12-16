@@ -27,7 +27,7 @@ const imagesDir = process.env.NODE_ENV === 'production'
 fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
 
 // Serve static files from the images directory
-app.use('/images', express.static(imagesDir));
+app.use('/api/images', express.static(imagesDir));
 
 // Initialize OpenAI API client
 const openai = new OpenAI({
@@ -86,7 +86,7 @@ function generateMockImage(prompt) {
   return `/images/${imageName}`;
 }
 
-app.post('/generate-image', async (req, res) => {
+app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
   try {
@@ -143,7 +143,7 @@ app.post('/generate-image', async (req, res) => {
 });
 
 // Gallery endpoint
-app.get('/gallery', (req, res) => {
+app.get('/api/gallery', (req, res) => {
   res.json(galleryItems);
 });
 
