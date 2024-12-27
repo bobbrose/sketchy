@@ -125,7 +125,7 @@ app.post('/generate-image', async (req, res) => {
 });
 
 // Gallery endpoint
-app.get('/api/gallery', (req, res) => {
+app.get('/gallery', (req, res) => {
   res.json(galleryItems);
 });
 
