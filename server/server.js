@@ -1,5 +1,4 @@
 import express from 'express';
-import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -68,7 +67,7 @@ async function generateMockImage(prompt) {
   }
 }
 
-app.post('/generate-image', async (req, res) => {
+app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
   try {
@@ -125,7 +124,7 @@ app.post('/generate-image', async (req, res) => {
 });
 
 // Gallery endpoint
-app.get('/gallery', (req, res) => {
+app.get('/api/gallery', (req, res) => {
   res.json(galleryItems);
 });
 
