@@ -6,6 +6,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 const imagesDir = process.env.NODE_ENV === 'production' 
   ? '/tmp/sketchy-images'
   : path.join(__dirname, 'images');
+console.log('Images directory:', imagesDir);
 
 // Ensure the images directory exists
 fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
@@ -46,7 +48,7 @@ async function saveImage(imageUrl, imageId) {
     const imagePath = path.join(imagesDir, imageName);
     await fs.writeFile(imagePath, buffer);
 
-    return `/api/images/${imageName}`;
+    return `/images/${imageName}`;
   } catch (error) {
     console.error('Error saving image:', error);
     throw new Error('Failed to save image');
