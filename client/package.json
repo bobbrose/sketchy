@@ -2,6 +2,7 @@
   "name": "sketchy-client",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/client",
   "dependencies": {
     "axios": "^0.21.1",
     "react": "^18.3.1",
@@ -9,7 +10,10 @@
     "react-scripts": "^5.0.1"
   },
   "scripts": {
-    "build": "react-scripts build"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
