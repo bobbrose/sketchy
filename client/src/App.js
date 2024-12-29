@@ -7,6 +7,7 @@ import './App.css';
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 function App() {
+  console.log('API_BASE_URL:', API_BASE_URL);
   const [prompt, setPrompt] = useState('');
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [image, setImage] = useState(null);

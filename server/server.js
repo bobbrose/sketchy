@@ -29,7 +29,7 @@ app.get('/api/health', (req, res) => {
 const imagesDir = process.env.NODE_ENV === 'production' 
   ? '/tmp/sketchy-images'
   : path.join(__dirname, 'images');
-console.log('Images directory:', imagesDir);
+console.log('Images Directory:', imagesDir);
 
 // Ensure the images directory exists
 fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
