@@ -96,6 +96,7 @@ app.post('/api/generate-image', async (req, res) => {
     } else {
       generatedPrompt = prompt;
     }
+    console.log('Getting image, use openai?', USE_OPENAI_API);
 
     let imageUrl;
     if (USE_OPENAI_API) {
@@ -107,6 +108,7 @@ app.post('/api/generate-image', async (req, res) => {
       });
       imageUrl = response.data[0].url;
       const imageId = uuidv4();
+      console.log('Image URL:', imageUrl);
       imageUrl = await saveImage(imageUrl, imageId);
     } else {
       imageUrl = generateMockImage(generatedPrompt);
