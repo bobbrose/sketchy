@@ -106,6 +106,8 @@ app.post('/api/generate-image', async (req, res) => {
         n: 1,
         size: "1024x1024",
       });
+      console.log('Got image');
+
       imageUrl = response.data[0].url;
       const imageId = uuidv4();
       console.log('Image URL:', imageUrl);
