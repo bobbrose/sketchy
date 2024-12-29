@@ -8,6 +8,8 @@ import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
 
+console.log('Server script is starting...');
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +18,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Add this near the top of your route definitions
+app.get('/api/health', (req, res) => {
+  console.log('Health check endpoint hit');
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
 
 // Change images directory to use /tmp in production
 const imagesDir = process.env.NODE_ENV === 'production' 
@@ -138,3 +146,5 @@ if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
+
+console.log('Server setup complete, ready to handle requests');
