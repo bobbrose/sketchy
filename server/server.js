@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
-import { put, list, del } from '@vercel/blob';
+import { put, list, del, setMetadata, getMetadata } from '@vercel/blob';
 
 console.log('Server script is starting...');
 
@@ -66,22 +66,23 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
       console.log('Saving image to Blob Store:', imageName);
       console.log('Metadata to be stored:', metadata);
       
-      const blobOptions = {
+      const { url } = await put(imageName, buffer, {
         access: 'public',
         addRandomSuffix: false,
-        token: BLOB_STORE_ID,
-        metadata: {
-          originalPrompt: metadata.originalPrompt || '',
-          generatedPrompt: metadata.generatedPrompt || ''
-        }
-      };
-      
-      console.log('Blob options:', JSON.stringify(blobOptions, null, 2));
-      
-      const { url, metadata: storedMetadata } = await put(imageName, buffer, blobOptions);
+        token: BLOB_STORE_ID
+      });
       
       console.log('Image saved to Blob Store:', url);
-      console.log('Stored metadata:', storedMetadata);
+      
+      // Set metadata after saving the image
+      const metadataToStore = {
+        originalPrompt: metadata.originalPrompt || '',
+        generatedPrompt: metadata.generatedPrompt || ''
+      };
+      
+      const { metadata: storedMetadata } = await setMetadata(url, metadataToStore, { token: BLOB_STORE_ID });
+      
+      console.log('Metadata set for image:', storedMetadata);
       
       if (!storedMetadata || !storedMetadata.originalPrompt || !storedMetadata.generatedPrompt) {
         console.warn('Metadata may not have been stored correctly');
@@ -95,9 +96,9 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
       return LOCAL_API_URL + `/images/${imageName}`;
     }
   } catch (error) {
-    console.error('Error saving image:', error);
+    console.error('Error saving image or setting metadata:', error);
     console.error('Error details:', error.response?.data || error.message);
-    throw new Error('Failed to save image');
+    throw new Error('Failed to save image or set metadata');
   }
 }
 
@@ -180,14 +181,15 @@ app.get('/api/gallery', async (req, res) => {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Raw blobs:', blobs);
-      const galleryItems = blobs.map(blob => {
-        console.log('Blob metadata:', blob.metadata);
+      const galleryItems = await Promise.all(blobs.map(async (blob) => {
+        const { metadata } = await getMetadata(blob.url, { token: BLOB_STORE_ID });
+        console.log('Blob metadata:', metadata);
         return {
           imageUrl: blob.url,
-          generatedPrompt: blob.metadata?.generatedPrompt || '',
-          originalPrompt: blob.metadata?.originalPrompt || ''
+          generatedPrompt: metadata?.generatedPrompt || '',
+          originalPrompt: metadata?.originalPrompt || ''
         };
-      });
+      }));
       console.log('Processed gallery items:', galleryItems);
       res.json(galleryItems);
     } catch (error) {
