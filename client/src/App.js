@@ -65,8 +65,8 @@ function App() {
   };
 
   const handleShare = () => {
-   // const imageUrl = `${API_BASE_URL}${image}`;
-   const imageUrl = image;
+    if (!image) return;
+    const imageUrl = image;
     navigator.clipboard.writeText(imageUrl).then(() => {
       setShareMessage('Image URL copied to clipboard!');
       setTimeout(() => setShareMessage(''), 3000); // Clear message after 3 seconds

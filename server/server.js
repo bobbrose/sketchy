@@ -55,7 +55,7 @@ console.log('BLOB_STORE_ID:', BLOB_STORE_ID);
 // In-memory storage for gallery items
 let galleryItems = [];
 
-async function saveImage(imageUrl, imageId) {
+async function saveImage(imageUrl, imageId, metadata) {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data, 'binary');
@@ -67,7 +67,11 @@ async function saveImage(imageUrl, imageId) {
       const { url } = await put(imageName, buffer, { 
         access: 'public',
         addRandomSuffix: false,
-        token: BLOB_STORE_ID
+        token: BLOB_STORE_ID,
+        metadata: {
+          originalPrompt: metadata.originalPrompt,
+          generatedPrompt: metadata.generatedPrompt
+        }
       });
       console.log('Image saved to Blob Store:', url);
       return url;
@@ -164,8 +168,8 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       const galleryItems = blobs.map(blob => ({
         imageUrl: blob.url,
-       // generatedPrompt: blob.generatedPrompt,
-        //originalPrompt: blob.originalPrompt
+        generatedPrompt: blob.metadata?.generatedPrompt || '',
+        originalPrompt: blob.metadata?.originalPrompt || ''
       }));
       res.json(galleryItems);
     } catch (error) {
