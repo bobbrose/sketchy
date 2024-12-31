@@ -8,10 +8,6 @@ import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
 import { put, list, del } from '@vercel/blob';
-import { head } from '@vercel/blob';
-
-
-console.log('Server script is starting...');
 
 dotenv.config();
 
@@ -32,7 +28,6 @@ app.get('/api/health', (req, res) => {
 const imagesDir = process.env.NODE_ENV === 'production' 
   ? '/tmp/sketchy-images'
   : path.join(__dirname, 'images');
-console.log('Images Directory:', imagesDir);
 
 // Ensure the images directory exists
 fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
@@ -60,32 +55,17 @@ let galleryItems = [];
 async function saveImage(imageUrl, imageId, metadata = {}) {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data + '?prompt=' + metadata.originalPrompt, 'binary');
-
+    const buffer = Buffer.from(response.data, 'binary');
     const imageName = `${imageId}.png`;
     
     if (USE_BLOB_STORE) {
-      console.log('Saving image to Blob Store:', imageName);
-      console.log('Metadata to be stored:', JSON.stringify(metadata));
-      
-      const metadataToStore = {
-        originalPrompt: metadata.originalPrompt || '',
-        generatedPrompt: metadata.generatedPrompt || ''
-      };
-
-      const { url, pathname } = await put(imageName, buffer, {
+      const { url } = await put(imageName, buffer, {
         access: 'public',
         addRandomSuffix: false,
         token: BLOB_STORE_ID
       });
-      const blobDetails = await head(url);
-      console.log('Image saved to Blob Store:', url);
-      console.log('Pathname:', pathname);
-      console.log('Metadata sent to Blob Store:', JSON.stringify(metadataToStore));
-      console.log('Blob details:', blobDetails);
-      
       return url;
-    } else {
+    } else  {
       const imagePath = path.join(imagesDir, imageName);
       await fs.writeFile(imagePath, buffer);
       console.log('Image saved locally:', imagePath);
