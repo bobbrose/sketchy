@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
-import { put, list, del } from '@vercel/blob';
+import { put, list, del, get } from '@vercel/blob';
 
 console.log('Server script is starting...');
 
@@ -83,11 +83,11 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
       console.log('Metadata sent to Blob Store:', JSON.stringify(metadataToStore));
 
       // Attempt to retrieve the blob to check its metadata
-      const { blobs } = await list({ token: BLOB_STORE_ID, prefix: pathname });
-      if (blobs.length > 0) {
-        console.log('Retrieved blob metadata:', JSON.stringify(blobs[0].metadata));
-      } else {
-        console.log('Unable to retrieve blob metadata immediately after saving');
+      try {
+        const { blob } = await get(pathname, { token: BLOB_STORE_ID });
+        console.log('Retrieved blob metadata:', JSON.stringify(blob.metadata));
+      } catch (error) {
+        console.error('Error retrieving blob metadata:', error);
       }
       
       return url;
