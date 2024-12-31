@@ -15,16 +15,16 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [gallery, setGallery] = useState([]);
-  const [shareMessage, setShareMessage] = useState('');
   const [toast, setToast] = useState(null);
-   // Check if the COMING_SOON variable is true, if so show a coming soon page.
-   const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
-   useEffect(() => {
-     if (isComingSoon) {
-       // Redirect to coming-soon.html
-       window.location.href = "/coming-soon.html";
-     }
-   }, [isComingSoon]);
+  
+  // Check if the COMING_SOON variable is true, if so show a coming soon page.
+  const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
+  useEffect(() => {
+    if (isComingSoon) {
+      // Redirect to coming-soon.html
+      window.location.href = "/coming-soon.html";
+    }
+  }, [isComingSoon]);
 
   useEffect(() => {
     fetchGallery();
