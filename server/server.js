@@ -55,7 +55,7 @@ console.log('BLOB_STORE_ID:', BLOB_STORE_ID);
 // In-memory storage for gallery items
 let galleryItems = [];
 
-async function saveImage(imageUrl, imageId, metadata) {
+async function saveImage(imageUrl, imageId, metadata = {}) {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data, 'binary');
@@ -64,13 +64,14 @@ async function saveImage(imageUrl, imageId, metadata) {
     
     if (USE_BLOB_STORE) {
       console.log('Saving image to Blob Store:', imageName);
+      console.log('metadata:', metadata);
       const { url } = await put(imageName, buffer, { 
         access: 'public',
         addRandomSuffix: false,
         token: BLOB_STORE_ID,
         metadata: {
-          originalPrompt: metadata.originalPrompt,
-          generatedPrompt: metadata.generatedPrompt
+          originalPrompt: metadata.originalPrompt || '',
+          generatedPrompt: metadata.generatedPrompt || ''
         }
       });
       console.log('Image saved to Blob Store:', url);
@@ -79,7 +80,7 @@ async function saveImage(imageUrl, imageId, metadata) {
       const imagePath = path.join(imagesDir, imageName);
       await fs.writeFile(imagePath, buffer);
       console.log('Image saved locally:', imagePath);
-      return  LOCAL_API_URL + `/images/${imageName}`;
+      return LOCAL_API_URL + `/images/${imageName}`;
     }
   } catch (error) {
     console.error('Error saving image:', error);
@@ -88,12 +89,11 @@ async function saveImage(imageUrl, imageId, metadata) {
 }
 
 async function generateMockImage(prompt) {
-  // Generate a colorful placeholder image using a third-party service
   const imageId = uuidv4();
   const mockImageUrl = `https://placehold.co/600x400/random/white?text=${encodeURIComponent(prompt)}`;
   
   try {
-    const savedImagePath = await saveImage(mockImageUrl, imageId);
+    const savedImagePath = await saveImage(mockImageUrl, imageId, { originalPrompt: prompt, generatedPrompt: prompt });
     return savedImagePath;
   } catch (error) {
     console.error('Error generating mock image:', error);
@@ -135,9 +135,9 @@ app.post('/api/generate-image', async (req, res) => {
       imageUrl = response.data[0].url;
       const imageId = uuidv4();
       console.log('Image URL:', imageUrl);
-      imageUrl = await saveImage(imageUrl, imageId);
+      imageUrl = await saveImage(imageUrl, imageId, { originalPrompt: prompt, generatedPrompt: generatedPrompt });
     } else {
-      imageUrl = generateMockImage(generatedPrompt);
+      imageUrl = await generateMockImage(prompt);
     }
 
     const metadata = {
