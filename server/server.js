@@ -64,8 +64,9 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
     
     if (USE_BLOB_STORE) {
       console.log('Saving image to Blob Store:', imageName);
-      console.log('metadata:', metadata);
-      const { url } = await put(imageName, buffer, { 
+      console.log('Metadata to be stored:', metadata);
+      
+      const blobOptions = {
         access: 'public',
         addRandomSuffix: false,
         token: BLOB_STORE_ID,
@@ -73,8 +74,19 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
           originalPrompt: metadata.originalPrompt || '',
           generatedPrompt: metadata.generatedPrompt || ''
         }
-      });
+      };
+      
+      console.log('Blob options:', JSON.stringify(blobOptions, null, 2));
+      
+      const { url, metadata: storedMetadata } = await put(imageName, buffer, blobOptions);
+      
       console.log('Image saved to Blob Store:', url);
+      console.log('Stored metadata:', storedMetadata);
+      
+      if (!storedMetadata || !storedMetadata.originalPrompt || !storedMetadata.generatedPrompt) {
+        console.warn('Metadata may not have been stored correctly');
+      }
+      
       return url;
     } else {
       const imagePath = path.join(imagesDir, imageName);
@@ -84,6 +96,7 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
     }
   } catch (error) {
     console.error('Error saving image:', error);
+    console.error('Error details:', error.response?.data || error.message);
     throw new Error('Failed to save image');
   }
 }
