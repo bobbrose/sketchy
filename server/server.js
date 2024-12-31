@@ -70,8 +70,8 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
         addRandomSuffix: false,
         token: BLOB_STORE_ID,
         metadata: {
-          originalPrompt: metadata.originalPrompt || '',
-          generatedPrompt: metadata.generatedPrompt || ''
+          originalPrompt: metadata.originalPrompt || 'op',
+          generatedPrompt: metadata.generatedPrompt || 'gp'
         }
       });
       console.log('Image saved to Blob Store:', url);
