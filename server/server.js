@@ -52,7 +52,7 @@ console.log('BLOB_STORE_ID:', BLOB_STORE_ID);
 // In-memory storage for gallery items
 let galleryItems = [];
 
-async function saveImage(imageUrl, imageId, metadata = {}) {
+async function saveImage(imageUrl, imageId) {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data, 'binary');
@@ -83,7 +83,7 @@ async function generateMockImage(prompt) {
   const mockImageUrl = `https://placehold.co/600x400/random/white?text=${encodeURIComponent(prompt)}`;
   
   try {
-    const savedImagePath = await saveImage(mockImageUrl, imageId, { originalPrompt: prompt, generatedPrompt: prompt });
+    const savedImagePath = await saveImage(mockImageUrl, imageId);
     return savedImagePath;
   } catch (error) {
     console.error('Error generating mock image:', error);
@@ -94,7 +94,6 @@ async function generateMockImage(prompt) {
 app.post('/api/generate-image', async (req, res) => {
   console.log('Received request to generate image');
   const { prompt } = req.body;
-  console.log('Prompt:', prompt);
 
   try {
 
@@ -127,7 +126,7 @@ app.post('/api/generate-image', async (req, res) => {
       imageUrl = response.data[0].url;
       const imageId = uuidv4();
       console.log('Image URL:', imageUrl);
-      imageUrl = await saveImage(imageUrl, imageId, { originalPrompt: prompt, generatedPrompt: generatedPrompt });
+      imageUrl = await saveImage(imageUrl, imageId);
     } else {
       imageUrl = await generateMockImage(prompt);
     }
@@ -168,11 +167,7 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Number of blobs retrieved:', blobs.length);
       const galleryItems = blobs.map((blob, index) => {
-        console.log(`Blob ${index + 1}:`);
-        console.log('  URL:', blob.url);
-        console.log('  Pathname:', blob.pathname);
-        console.log('  Metadata:', JSON.stringify(blob.metadata));
-        prompt = blob.url.split('?prompt=')[1];
+
         return {
           imageUrl: blob.url,
           originalPrompt: prompt,
