@@ -26,14 +26,20 @@ app.get('/api/health', (req, res) => {
 
 // Change images directory to use /tmp in production
 const imagesDir = process.env.NODE_ENV === 'production' 
-  ? '/tmp/sketchy-images'
+  ? null
   : path.join(__dirname, 'images');
 
-// Ensure the images directory exists
-fs.mkdir(imagesDir, { recursive: true }).catch(console.error);
-
-// Serve static files from the images directory
-app.use('/api/images', express.static(imagesDir));
+// Ensure the images directory exists and serve static files only in development
+if (process.env.NODE_ENV !== 'production' && imagesDir) {
+  fs.mkdir(imagesDir, { recursive: true })
+    .then(() => {
+      app.use('/api/images', express.static(imagesDir));
+      console.log('Images directory created and static serving enabled');
+    })
+    .catch(error => {
+      console.error('Error creating images directory:', error);
+    });
+}
 
 // Initialize OpenAI API client
 const openai = new OpenAI({
@@ -100,7 +106,7 @@ app.post('/api/generate-image', async (req, res) => {
     // Generate prompt using ChatGPT
     let generatedPrompt;
     if (USE_OPENAI_API) {
-      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or artist: "${prompt}". The description should be describe the song or artist in vivid detail with speciifc references to the song or something distinctive about the artist so an image can be generated from the description. If there is an iconic logo or visual reference for the band, include that in the image.`;
+      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or band, under 500 characters, keep it safe and non explicit, use the bands images, iconography, or unique graphics if available: "${prompt}". The description should be describe the song or artist in vivid detail with speciifc references to the song or something distinctive about the artist so an image can be generated from the description. If there is an iconic logo or visual reference for the band, include that in the image.`;
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: wrappedPrompt }],
@@ -116,10 +122,11 @@ app.post('/api/generate-image', async (req, res) => {
     let imageUrl;
     if (USE_OPENAI_API) {
       const response = await openai.images.generate({
-        model: "dall-e-2",
+        model: "dall-e-3",
         prompt: generatedPrompt,
         n: 1,
-        size: "512x512",
+        quality: "standard",
+        size: "1024x1024",
       });
       console.log('Got image');
 
