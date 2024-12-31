@@ -192,12 +192,10 @@ app.get('/api/gallery', async (req, res) => {
         console.log('  URL:', blob.url);
         console.log('  Pathname:', blob.pathname);
         console.log('  Metadata:', JSON.stringify(blob.metadata));
-
+        prompt = url.split('?prompt=')[1];
         return {
           imageUrl: blob.url,
-          generatedPrompt: blob.metadata?.generatedPrompt || '',
-          originalPrompt: blob.metadata?.originalPrompt || '',
-          createdAt: blob.uploadedAt || new Date().toISOString()
+          originalPrompt: prompt,
         };
       });
       
