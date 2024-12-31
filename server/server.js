@@ -63,13 +63,14 @@ async function saveImage(imageUrl, imageId) {
     
     if (USE_BLOB_STORE) {
       console.log('Saving image to Blob Store:', imageName);
-      const { url } = await put(imageName, buffer, { 
+      const { blobName } = await put(imageName, buffer, { 
         access: 'public',
         addRandomSuffix: false,
         token: BLOB_STORE_ID
       });
       console.log('Image saved to Blob Store:', url);
-      return url;
+      //return url;
+      return `/images/${blobName}`;
     } else {
       const imagePath = path.join(imagesDir, imageName);
       await fs.writeFile(imagePath, buffer);
@@ -172,6 +173,25 @@ app.get('/api/gallery', async (req, res) => {
     }
   } else {
     res.json(galleryItems);
+  }
+});
+
+// Clear gallery endpoint
+app.delete('/api/clear-gallery', async (req, res) => {
+  try {
+    if (USE_BLOB_STORE) {
+      const { blobs } = await list({ token: BLOB_STORE_ID });
+      for (const blob of blobs) {
+        await del(blob.url, { token: BLOB_STORE_ID });
+      }
+    }
+    
+    galleryItems = [];
+    
+    res.status(200).json({ message: 'Gallery cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing gallery:', error);
+    res.status(500).json({ error: 'Failed to clear gallery', details: error.message });
   }
 });
 
