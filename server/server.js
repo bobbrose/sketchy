@@ -70,9 +70,8 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
         addRandomSuffix: false,
         token: BLOB_STORE_ID,
         metadata: {
-          color: 'red',
-          originalPrompt: 'ooop',
-          generatedPrompt: metadata.generatedPrompt || 'gp'
+          originalPrompt: metadata.originalPrompt || '',
+          generatedPrompt: metadata.generatedPrompt || ''
         }
       });
       console.log('Image saved to Blob Store:', url);
@@ -167,11 +166,16 @@ app.get('/api/gallery', async (req, res) => {
   if (USE_BLOB_STORE) {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
-      const galleryItems = blobs.map(blob => ({
-        imageUrl: blob.url,
-        generatedPrompt: blob.metadata?.generatedPrompt || '',
-        originalPrompt: blob.metadata?.originalPrompt || ''
-      }));
+      console.log('Raw blobs:', blobs);
+      const galleryItems = blobs.map(blob => {
+        console.log('Blob metadata:', blob.metadata);
+        return {
+          imageUrl: blob.url,
+          generatedPrompt: blob.metadata?.generatedPrompt || '',
+          originalPrompt: blob.metadata?.originalPrompt || ''
+        };
+      });
+      console.log('Processed gallery items:', galleryItems);
       res.json(galleryItems);
     } catch (error) {
       console.error('Error fetching gallery from Blob Store:', error);
