@@ -59,11 +59,14 @@ function App() {
 
   const handleGalleryItemClick = (item) => {
     setPrompt(item.prompt);
+    setGeneratedPrompt(item.generatedPrompt);
+    setOriginalPrompt(item.originalPrompt);
     setImage(item.imageUrl);
   };
 
   const handleShare = () => {
-    const imageUrl = `${API_BASE_URL}${image}`;
+   // const imageUrl = `${API_BASE_URL}${image}`;
+   const imageUrl = image;
     navigator.clipboard.writeText(imageUrl).then(() => {
       setShareMessage('Image URL copied to clipboard!');
       setTimeout(() => setShareMessage(''), 3000); // Clear message after 3 seconds
@@ -90,7 +93,7 @@ function App() {
         <div className="gallery">
           {gallery.map((item, index) => (
             <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
-              <img src={`${API_BASE_URL}${item.imageUrl}`} alt={item.originalPrompt} />
+              <img src={item.imageUrl} alt={item.originalPrompt} />
               <p>{item.originalPrompt}</p>
             </div>
           ))}
@@ -101,7 +104,7 @@ function App() {
         {error && <p className="error">{error}</p>}
         {image && !loading && (
           <div>
-            <img src={`${API_BASE_URL}${image}`} alt="Generated content" />
+            <img src={image} alt="Generated content" />
             {generatedPrompt && (
               <div className="generated-prompt">
                 <h3>Inspired from: "{originalPrompt}"</h3>

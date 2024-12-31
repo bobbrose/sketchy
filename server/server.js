@@ -46,6 +46,7 @@ const openai = new OpenAI({
 const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
 const USE_BLOB_STORE = process.env.NODE_ENV === 'production';
 const BLOB_STORE_ID = process.env.BLOB_READ_WRITE_TOKEN;
+const LOCAL_API_URL = 'http://localhost:3001/api'
 console.log('Use BLOB_STORE:', USE_BLOB_STORE);
 console.log('Use OpenAI API:', USE_OPENAI_API);
 console.log('BLOB_STORE_ID:', BLOB_STORE_ID);
@@ -69,13 +70,12 @@ async function saveImage(imageUrl, imageId) {
         token: BLOB_STORE_ID
       });
       console.log('Image saved to Blob Store:', url);
-      //return url;
-      return `/images/${blobName}`;
+      return url;
     } else {
       const imagePath = path.join(imagesDir, imageName);
       await fs.writeFile(imagePath, buffer);
       console.log('Image saved locally:', imagePath);
-      return `/images/${imageName}`;
+      return  LOCAL_API_URL + `/images/${imageName}`;
     }
   } catch (error) {
     console.error('Error saving image:', error);
@@ -164,7 +164,8 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       const galleryItems = blobs.map(blob => ({
         imageUrl: blob.url,
-        // Add any other metadata you want to include
+        generatedPrompt: generatedPrompt,
+        originalPrompt: prompt
       }));
       res.json(galleryItems);
     } catch (error) {
