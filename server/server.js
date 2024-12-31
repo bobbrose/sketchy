@@ -70,7 +70,8 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
         addRandomSuffix: false,
         token: BLOB_STORE_ID,
         metadata: {
-          originalPrompt: metadata.originalPrompt || 'op',
+          color: 'red',
+          originalPrompt: 'ooop',
           generatedPrompt: metadata.generatedPrompt || 'gp'
         }
       });
