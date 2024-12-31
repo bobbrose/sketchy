@@ -60,7 +60,7 @@ let galleryItems = [];
 async function saveImage(imageUrl, imageId, metadata = {}) {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data, 'binary');
+    const buffer = Buffer.from(response.data + '?prompt=' + metadata.originalPrompt, 'binary');
 
     const imageName = `${imageId}.png`;
     
@@ -76,8 +76,7 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
       const { url, pathname } = await put(imageName, buffer, {
         access: 'public',
         addRandomSuffix: false,
-        token: BLOB_STORE_ID,
-        metadata: metadataToStore
+        token: BLOB_STORE_ID
       });
       const blobDetails = await head(url);
       console.log('Image saved to Blob Store:', url);
