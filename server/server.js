@@ -118,7 +118,9 @@ async function generateMockImage(prompt) {
 }
 
 app.post('/api/generate-image', async (req, res) => {
+  console.log('Received request to generate image');
   const { prompt } = req.body;
+  console.log('Prompt:', prompt);
 
   try {
 
@@ -166,38 +168,49 @@ app.post('/api/generate-image', async (req, res) => {
     // Add to gallery
     galleryItems.push(metadata);
 
+    console.log('Image generation completed');
+    console.log('Response sent:', { 
+      imageUrl: imageUrl, 
+      generatedPrompt: generatedPrompt,
+      originalPrompt: prompt 
+    });
+
     res.json({ 
       imageUrl: imageUrl, 
       generatedPrompt: generatedPrompt,
       originalPrompt: prompt 
     });
   } catch (error) {
-    console.error('Error generating image:', error);
+    console.error('Error in /api/generate-image:', error);
     res.status(500).json({ error: 'Failed to generate image', details: error.message });
   }
 });
 
 // Gallery endpoint
 app.get('/api/gallery', async (req, res) => {
+  console.log('Received request for gallery');
   if (USE_BLOB_STORE) {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
-      console.log('Raw blobs:', blobs);
-      const galleryItems = blobs.map(blob => {
-        console.log('Blob metadata:', blob.metadata);
+      console.log('Number of blobs retrieved:', blobs.length);
+      const galleryItems = blobs.map((blob, index) => {
+        console.log(`Blob ${index + 1}:`);
+        console.log('  URL:', blob.url);
+        console.log('  Metadata:', JSON.stringify(blob.metadata));
         return {
           imageUrl: blob.url,
           generatedPrompt: blob.metadata?.generatedPrompt || '',
           originalPrompt: blob.metadata?.originalPrompt || ''
         };
       });
-      console.log('Processed gallery items:', galleryItems);
+      console.log('Processed gallery items:', JSON.stringify(galleryItems));
       res.json(galleryItems);
     } catch (error) {
       console.error('Error fetching gallery from Blob Store:', error);
       res.status(500).json({ error: 'Failed to fetch gallery' });
     }
   } else {
+    console.log('Using in-memory gallery items');
     res.json(galleryItems);
   }
 });
