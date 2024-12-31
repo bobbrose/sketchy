@@ -167,10 +167,8 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Number of blobs retrieved:', blobs.length);
       const galleryItems = blobs.map((blob, index) => {
-
         return {
-          imageUrl: blob.url,
-          originalPrompt: prompt,
+          imageUrl: blob.url
         };
       });
       
