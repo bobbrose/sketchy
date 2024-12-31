@@ -7,7 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
-import { put, list, del, get } from '@vercel/blob';
+import { put, list, del } from '@vercel/blob';
+import { head } from '@vercel/blob';
+
 
 console.log('Server script is starting...');
 
@@ -77,18 +79,11 @@ async function saveImage(imageUrl, imageId, metadata = {}) {
         token: BLOB_STORE_ID,
         metadata: metadataToStore
       });
-      
+      const blobDetails = await head(url);
       console.log('Image saved to Blob Store:', url);
       console.log('Pathname:', pathname);
       console.log('Metadata sent to Blob Store:', JSON.stringify(metadataToStore));
-
-      // Attempt to retrieve the blob to check its metadata
-      try {
-        const { blob } = await get(pathname, { token: BLOB_STORE_ID });
-        console.log('Retrieved blob metadata:', JSON.stringify(blob.metadata));
-      } catch (error) {
-        console.error('Error retrieving blob metadata:', error);
-      }
+      console.log('Blob details:', blobDetails);
       
       return url;
     } else {
@@ -196,13 +191,19 @@ app.get('/api/gallery', async (req, res) => {
       const galleryItems = blobs.map((blob, index) => {
         console.log(`Blob ${index + 1}:`);
         console.log('  URL:', blob.url);
+        console.log('  Pathname:', blob.pathname);
         console.log('  Metadata:', JSON.stringify(blob.metadata));
+
         return {
           imageUrl: blob.url,
           generatedPrompt: blob.metadata?.generatedPrompt || '',
-          originalPrompt: blob.metadata?.originalPrompt || ''
+          originalPrompt: blob.metadata?.originalPrompt || '',
+          createdAt: blob.uploadedAt || new Date().toISOString()
         };
       });
+      
+      // Sort gallery items by creation date, newest first
+      galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       console.log('Processed gallery items:', JSON.stringify(galleryItems));
       res.json(galleryItems);
     } catch (error) {
