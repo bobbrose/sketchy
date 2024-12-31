@@ -64,7 +64,7 @@ async function saveImage(imageUrl, imageId) {
     
     if (USE_BLOB_STORE) {
       console.log('Saving image to Blob Store:', imageName);
-      const { blobName } = await put(imageName, buffer, { 
+      const { url } = await put(imageName, buffer, { 
         access: 'public',
         addRandomSuffix: false,
         token: BLOB_STORE_ID
@@ -164,8 +164,8 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       const galleryItems = blobs.map(blob => ({
         imageUrl: blob.url,
-        generatedPrompt: generatedPrompt,
-        originalPrompt: prompt
+       // generatedPrompt: blob.generatedPrompt,
+        //originalPrompt: blob.originalPrompt
       }));
       res.json(galleryItems);
     } catch (error) {
