@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
+import { put, list, del } from '@vercel/blob';
 
 console.log('Server script is starting...');
 
@@ -43,6 +44,12 @@ const openai = new OpenAI({
 });
 
 const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
+const USE_BLOB_STORE = process.env.NODE_ENV === 'production';
+const BLOB_STORE_ID = process.env.BLOB_READ_WRITE_TOKEN;
+console.log('Use BLOB_STORE:', USE_BLOB_STORE);
+console.log('Use OpenAI API:', USE_OPENAI_API);
+console.log('BLOB_STORE_ID:', BLOB_STORE_ID);
+
 
 // In-memory storage for gallery items
 let galleryItems = [];
@@ -53,10 +60,22 @@ async function saveImage(imageUrl, imageId) {
     const buffer = Buffer.from(response.data, 'binary');
 
     const imageName = `${imageId}.png`;
-    const imagePath = path.join(imagesDir, imageName);
-    await fs.writeFile(imagePath, buffer);
-
-    return `/images/${imageName}`;
+    
+    if (USE_BLOB_STORE) {
+      console.log('Saving image to Blob Store:', imageName);
+      const { url } = await put(imageName, buffer, { 
+        access: 'public',
+        addRandomSuffix: false,
+        token: BLOB_STORE_ID
+      });
+      console.log('Image saved to Blob Store:', url);
+      return url;
+    } else {
+      const imagePath = path.join(imagesDir, imageName);
+      await fs.writeFile(imagePath, buffer);
+      console.log('Image saved locally:', imagePath);
+      return `/images/${imageName}`;
+    }
   } catch (error) {
     console.error('Error saving image:', error);
     throw new Error('Failed to save image');
@@ -138,8 +157,22 @@ app.post('/api/generate-image', async (req, res) => {
 });
 
 // Gallery endpoint
-app.get('/api/gallery', (req, res) => {
-  res.json(galleryItems);
+app.get('/api/gallery', async (req, res) => {
+  if (USE_BLOB_STORE) {
+    try {
+      const { blobs } = await list({ token: BLOB_STORE_ID });
+      const galleryItems = blobs.map(blob => ({
+        imageUrl: blob.url,
+        // Add any other metadata you want to include
+      }));
+      res.json(galleryItems);
+    } catch (error) {
+      console.error('Error fetching gallery from Blob Store:', error);
+      res.status(500).json({ error: 'Failed to fetch gallery' });
+    }
+  } else {
+    res.json(galleryItems);
+  }
 });
 
 // Export for Vercel
