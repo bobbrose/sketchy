@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
-import { put, list, del, setMetadata, getMetadata } from '@vercel/blob';
+import { put, list, del, setMetadata } from '@vercel/blob';
 
 console.log('Server script is starting...');
 
@@ -181,15 +181,14 @@ app.get('/api/gallery', async (req, res) => {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Raw blobs:', blobs);
-      const galleryItems = await Promise.all(blobs.map(async (blob) => {
-        const { metadata } = await getMetadata(blob.url, { token: BLOB_STORE_ID });
-        console.log('Blob metadata:', metadata);
+      const galleryItems = blobs.map(blob => {
+        console.log('Blob metadata:', blob.metadata);
         return {
           imageUrl: blob.url,
-          generatedPrompt: metadata?.generatedPrompt || '',
-          originalPrompt: metadata?.originalPrompt || ''
+          generatedPrompt: blob.metadata?.generatedPrompt || '',
+          originalPrompt: blob.metadata?.originalPrompt || ''
         };
-      }));
+      });
       console.log('Processed gallery items:', galleryItems);
       res.json(galleryItems);
     } catch (error) {
