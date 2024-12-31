@@ -98,7 +98,6 @@ async function generateMockImage(prompt) {
 }
 
 app.post('/api/generate-image', async (req, res) => {
-  console.log('Received request to generate image');
   const { prompt } = req.body;
 
   try {
@@ -128,7 +127,6 @@ app.post('/api/generate-image', async (req, res) => {
         quality: "standard",
         size: "1024x1024",
       });
-      console.log('Got image');
 
       imageUrl = response.data[0].url;
       const imageId = uuidv4();
@@ -168,7 +166,6 @@ app.post('/api/generate-image', async (req, res) => {
 
 // Gallery endpoint
 app.get('/api/gallery', async (req, res) => {
-  console.log('Received request for gallery');
   if (USE_BLOB_STORE) {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
@@ -181,7 +178,6 @@ app.get('/api/gallery', async (req, res) => {
       
       // Sort gallery items by creation date, newest first
       galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      console.log('Processed gallery items:', JSON.stringify(galleryItems));
       res.json(galleryItems);
     } catch (error) {
       console.error('Error fetching gallery from Blob Store:', error);

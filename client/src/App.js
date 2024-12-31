@@ -16,6 +16,7 @@ function App() {
   const [error, setError] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [shareMessage, setShareMessage] = useState('');
+  const [toast, setToast] = useState(null);
    // Check if the COMING_SOON variable is true, if so show a coming soon page.
    const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
    useEffect(() => {
@@ -68,11 +69,11 @@ function App() {
     if (!image) return;
     const imageUrl = image;
     navigator.clipboard.writeText(imageUrl).then(() => {
-      setShareMessage('Image URL copied to clipboard!');
-      setTimeout(() => setShareMessage(''), 3000); // Clear message after 3 seconds
+      setToast('Image URL copied to clipboard');
+      setTimeout(() => setToast(null), 3000); // Clear toast after 3 seconds
     }, (err) => {
       console.error('Could not copy text: ', err);
-      setShareMessage('Failed to copy URL. Please try again.');
+      setToast('Failed to copy URL. Please try again.');
     });
   };
 
@@ -112,11 +113,11 @@ function App() {
               </div>
             )}
             <button onClick={handleShare}>Share Image</button>
-            {shareMessage && <p>{shareMessage}</p>}
           </div>
         )}
         {!image && !loading && !error && <p>Your generated image will appear here</p>}
       </div>
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
