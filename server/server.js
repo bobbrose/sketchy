@@ -179,7 +179,7 @@ app.post('/api/generate-image', async (req, res) => {
   }
 });
 
-// Gallery endpoint
+// Gallery endpoint, not protected, anyone can view the gallery items
 app.get('/api/gallery', async (req, res) => {
   if (USE_BLOB_STORE) {
     try {
@@ -220,7 +220,7 @@ app.get('/api/gallery', async (req, res) => {
   }
 });
 
-// Clear gallery endpoint
+// Clear gallery endpoint, protected by API key, should only be called by admin
 app.delete('/api/clear-gallery', checkApiKey, async (req, res) => {
   try {
     if (USE_BLOB_STORE) {
@@ -285,7 +285,7 @@ async function removeImage(imageUrl) {
   }
 }
 
-// Endpoint to remove an image
+// Endpoint to remove an image, protected by API key, should only be called by admin
 app.delete('/api/remove-image', checkApiKey, async (req, res) => {
   const { imageUrl } = req.body;
   

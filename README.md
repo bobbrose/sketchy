@@ -31,17 +31,32 @@ To try Sketchy:
    USE_OPENAI_API=true
    ```
 
-5. Start the backend server:
+5. For production deployment on Vercel, set up the following:
+   - Vercel KV for data storage
+   - Vercel Blob Store for image storage
+   Add the following to your `.env` file (and Vercel environment variables):
+   ```
+   BLOB_READ_WRITE_TOKEN=your_blob_store_token
+   KV_REST_API_URL=your_kv_rest_api_url
+   KV_REST_API_TOKEN=your_kv_rest_api_token
+   ```
+
+6. Set up an admin API key for protected endpoints:
+   ```
+   ADMIN_API_KEY=your_secure_admin_api_key
+   ```
+
+7. Start the backend server:
    ```
    npm run server
    ```
 
-6. In a new terminal, start the React development server:
+8. In a new terminal, start the React development server:
    ```
    npm run client
    ```
 
-7. Open your browser and navigate to http://localhost:3000 to view the app.
+9. Open your browser and navigate to http://localhost:3000 to view the app.
 ## Project Structure
 
 - `client/`: Contains the React frontend application
@@ -53,6 +68,8 @@ To try Sketchy:
 - Frontend: React
 - Backend: Node.js with Express
 - API: OpenAI for prompt generation and image creation
+- Storage: Vercel KV for data storage, Vercel Blob Store for image storage
+- Deployment: Vercel
 
 ## Contributing
 
