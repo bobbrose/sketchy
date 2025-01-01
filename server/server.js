@@ -64,7 +64,7 @@ async function saveImage(imageUrl, imageId) {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data, 'binary');
     const imageName = `${imageId}.png`;
-    
+
     if (USE_BLOB_STORE) {
       const { url } = await put(imageName, buffer, {
         access: 'public',
@@ -87,15 +87,8 @@ async function saveImage(imageUrl, imageId) {
 
 async function generateMockImage(prompt) {
   const imageId = uuidv4();
-  const mockImageUrl = `https://placehold.co/600x400/random/white?text=${encodeURIComponent(prompt)}`;
-  
-  try {
-    const savedImagePath = await saveImage(mockImageUrl, imageId);
-    return savedImagePath;
-  } catch (error) {
-    console.error('Error generating mock image:', error);
-    throw new Error('Failed to generate mock image');
-  }
+  const mockImageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(prompt)}`;
+  return mockImageUrl
 }
 
 app.post('/api/generate-image', async (req, res) => {
@@ -147,6 +140,10 @@ app.post('/api/generate-image', async (req, res) => {
     // Add to gallery
     galleryItems.push(metadata);
 
+    // Store data in KV
+    await kv.set(imageUrl, metadata);
+    console.log('Data stored in KV');
+
     console.log('Image generation completed');
     console.log('Response sent:', { 
       imageUrl: imageUrl, 
@@ -171,11 +168,27 @@ app.get('/api/gallery', async (req, res) => {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Number of blobs retrieved:', blobs.length);
-      const galleryItems = blobs.map((blob, index) => {
-        return {
-          imageUrl: blob.url
-        };
-      });
+
+      const galleryItems = await Promise.all(blobs.map(async (blob) => {
+        // Retrieve metadata from KV
+        const metadata = await kv.get(blob.url);
+        console.log('Data retrieved from KV:', metadata);
+
+        if (metadata) {
+          return {
+            imageUrl: blob.url,
+            originalPrompt: metadata.originalPrompt,
+            generatedPrompt: metadata.generatedPrompt,
+            createdAt: metadata.createdAt
+          };
+        } else {
+          // Fallback if metadata is not found
+          return {
+            imageUrl: blob.url,
+            createdAt: blob.uploadedAt // Use blob's upload time as fallback
+          };
+        }
+      }));
       
       // Sort gallery items by creation date, newest first
       galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -210,6 +223,8 @@ app.delete('/api/clear-gallery', async (req, res) => {
 });
 
 // New endpoint to test Vercel KV
+// call with curl -X POST http://localhost:3001/api/test-kv
+// Verify that it runs without error and the stored map, 'stored' is identical to 'retrieved'.
 app.post('/api/test-kv', async (req, res) => {
   try {
     const testData = {
