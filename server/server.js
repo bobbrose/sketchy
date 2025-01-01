@@ -19,6 +19,26 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Add this near the top of your file
+const API_KEY = process.env.ADMIN_API_KEY;
+
+// Middleware to check API key
+const checkApiKey = (req, res, next) => {
+  const providedApiKey = req.query.api_key || req.headers['x-api-key'];
+  
+  if (!API_KEY) {
+    console.error('ADMIN_API_KEY is not set in environment variables');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  if (providedApiKey !== API_KEY) {
+    console.log('Unauthorized API access attempt');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  next();
+};
+
 // Add this near the top of your route definitions
 app.get('/api/health', (req, res) => {
   console.log('Health check endpoint hit');
@@ -201,7 +221,7 @@ app.get('/api/gallery', async (req, res) => {
 });
 
 // Clear gallery endpoint
-app.delete('/api/clear-gallery', async (req, res) => {
+app.delete('/api/clear-gallery', checkApiKey, async (req, res) => {
   try {
     if (USE_BLOB_STORE) {
       const { blobs } = await list({ token: BLOB_STORE_ID });
@@ -227,35 +247,6 @@ app.delete('/api/clear-gallery', async (req, res) => {
   } catch (error) {
     console.error('Error clearing gallery:', error);
     res.status(500).json({ error: 'Failed to clear gallery', details: error.message });
-  }
-});
-
-// New endpoint to test Vercel KV
-// call with curl -X POST http://localhost:3001/api/test-kv
-// Verify that it runs without error and the stored map, 'stored' is identical to 'retrieved'.
-app.post('/api/test-kv', async (req, res) => {
-  try {
-    const testData = {
-      message: "Hello, Vercel KV!",
-      color: "red",
-      timestamp: new Date().toISOString()
-    };
-
-    // Store data in KV
-    await kv.set('test-key', JSON.stringify(testData));
-    console.log('Data stored in KV');
-
-    // Retrieve data from KV
-    const retrievedData = await kv.get('test-key');
-    console.log('Data retrieved from KV:', retrievedData);
-
-    res.json({
-      stored: testData,
-      retrieved: retrievedData
-    });
-  } catch (error) {
-    console.error('Error testing KV:', error);
-    res.status(500).json({ error: 'Failed to test KV', details: error.message });
   }
 });
 
@@ -295,7 +286,7 @@ async function removeImage(imageUrl) {
 }
 
 // Endpoint to remove an image
-app.delete('/api/remove-image', async (req, res) => {
+app.delete('/api/remove-image', checkApiKey, async (req, res) => {
   const { imageUrl } = req.body;
   
   if (!imageUrl) {
