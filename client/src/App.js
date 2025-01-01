@@ -16,6 +16,7 @@ function App() {
   const [error, setError] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [toast, setToast] = useState(null);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   
   // Check if the COMING_SOON variable is true, if so show a coming soon page.
   const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
@@ -79,43 +80,76 @@ function App() {
 
   return (
     <div className="App">
-      <div className="panel left-panel">
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Enter a song or artist..."
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? 'Generating...' : 'Generate Soundscape'}
-          </button>
-        </form>
-        <div className="gallery">
-          {gallery.map((item, index) => (
-            <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
-              <img src={item.imageUrl} alt={item.originalPrompt} />
-              <p>{item.originalPrompt}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="panel right-panel">
-        {loading && <p>Generating image...</p>}
-        {error && <p className="error">{error}</p>}
-        {image && !loading && (
-          <div>
-            <img src={image} alt="Generated content" />
-            {generatedPrompt && (
-              <div className="generated-prompt">
-                <h3>Inspired from: "{originalPrompt}"</h3>
-                <p>{generatedPrompt}</p>
-              </div>
-            )}
-            <button onClick={handleShare}>Share Image</button>
+      <header className="App-header">
+        <h1>Soundscapes - Create images inspired from bands and songs</h1>
+        <button onClick={() => setIsAboutOpen(true)}>About</button>
+      </header>
+      
+      {isAboutOpen && (
+        <div className="about-popup">
+          <div className="about-content">
+            <h2>About Soundscapes</h2>
+            <p>Soundscapes is a learning project that generates images inspired by bands and songs using GenAI. There is a two step process:</p>
+            <ul>
+              <li>The prompt is generated using ChatGPT from the song or band name, with instructions to make it suitable for image generation. Model: gpt-3.5-turbo</li>
+              <li>The generated prompt is used to create an image using OpenAI. Model: dall-e-3</li>
+            </ul>
+            <p>
+              <a href="https://github.com/bobbrose/sketchy" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            </p>
+            <p>
+              <a href="https://bobbrose.com" target="_blank" rel="noopener noreferrer">Created by Bob Rose</a>
+              <p>
+                Open source, available under the MIT License.  Feel free to clone and contribute or just learn from it.
+                </p>
+              <p>
+                Created images are shared in gallery - no gurantee of quality, or permanence.  Download and save any images you like if you want to keep them.
+              </p>
+            </p>
+            <button onClick={() => setIsAboutOpen(false)}>Close</button>
           </div>
-        )}
-        {!image && !loading && !error && <p>Your generated image will appear here</p>}
+        </div>
+      )}
+
+      <div className="main-content">
+        <div className="panel left-panel">
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Enter a song or artist..."
+            />
+            <button type="submit" disabled={loading}>
+              {loading ? 'Generating...' : 'Generate Soundscape'}
+            </button>
+          </form>
+          <div className="gallery">
+            {gallery.map((item, index) => (
+              <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
+                <img src={item.imageUrl} alt={item.originalPrompt} />
+                <p>{item.originalPrompt}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="panel right-panel">
+          {loading && <p>Generating image...</p>}
+          {error && <p className="error">{error}</p>}
+          {image && !loading && (
+            <div>
+              <img src={image} alt="Generated content" />
+              {generatedPrompt && (
+                <div className="generated-prompt">
+                  <h3>Inspired from: "{originalPrompt}"</h3>
+                  <p>{generatedPrompt}</p>
+                </div>
+              )}
+              <button onClick={handleShare}>Share Image</button>
+            </div>
+          )}
+          {!image && !loading && !error && <p>Your generated image will appear here</p>}
+        </div>
       </div>
       {toast && <div className="toast">{toast}</div>}
     </div>
