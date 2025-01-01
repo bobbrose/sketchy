@@ -89,11 +89,7 @@ function App() {
         <div className="about-popup">
           <div className="about-content">
             <h2>About Soundscapes</h2>
-            <p>Soundscapes is a learning project that generates images inspired by bands and songs using GenAI. There is a two step process:</p>
-            <ul>
-              <li>The prompt is generated using ChatGPT from the song or band name, with instructions to make it suitable for image generation. Model: gpt-3.5-turbo</li>
-              <li>The generated prompt is used to create an image using OpenAI. Model: dall-e-3</li>
-            </ul>
+            <p>Soundscapes is a project that generates images inspired by bands and songs using AI.</p>
             <p>
               <a href="https://github.com/bobbrose/sketchy" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
             </p>
@@ -103,7 +99,7 @@ function App() {
                 Open source, available under the MIT License.  Feel free to clone and contribute or just learn from it.
                 </p>
               <p>
-                Created images are shared in gallery - no gurantee of quality, or permanence.  Download and save any images you like if you want to keep them.
+                Created images are shared in gallery - no guarantee of quality, or permanence.  Download and save any images you like if you want to keep them.
               </p>
             </p>
             <button onClick={() => setIsAboutOpen(false)}>Close</button>
@@ -137,7 +133,7 @@ function App() {
           {loading && <p>Generating image...</p>}
           {error && <p className="error">{error}</p>}
           {image && !loading && (
-            <div>
+            <div className="generated-content">
               <img src={image} alt="Generated content" />
               {generatedPrompt && (
                 <div className="generated-prompt">

@@ -4,20 +4,9 @@
   height: 100vh;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
 .App-header {
   background-color: #282c34;
-  padding: 20px;
+  padding: 15px 20px;
   color: white;
   display: flex;
   justify-content: space-between;
@@ -48,176 +37,66 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .left-panel {
   background-color: #f0f0f0;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
 }
 
 .right-panel {
   background-color: #e0e0e0;
-  justify-content: center;
-  align-items: center;
 }
+
 form {
-  display: flex;
   margin-bottom: 20px;
 }
 
 input[type="text"] {
-  flex-grow: 1;
+  width: 100%;
   padding: 10px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-right: 10px; /* Add this line to create space before the button */
+  margin-bottom: 10px;
 }
 
-form button {
+button {
   padding: 10px 20px;
-  font-size: 16px;
   background-color: #4CAF50;
   color: white;
   border: none;
   cursor: pointer;
-  border-radius: 4px; /* Change this to match the input's border-radius */
-}
-
-form button:hover {
-  background-color: #45a049;
-}
-
-form button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-img {
-  max-width: 100%;
-  max-height: 100%;
 }
 
 .gallery {
-  flex-grow: 1;
-  overflow-y: auto;
-  margin-top: 10px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); /* Increased minmax value */
-  gap: 15px 20px; /* Increased gap, with more horizontal space */
-  padding: 10px;
-  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 .gallery-item {
   cursor: pointer;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 8px; /* Increased padding */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  width: 100%;
-  height: auto;
-  max-width: 130px; /* Increased max-width */
-  margin: 0 auto;
-  transition: transform 0.2s ease-in-out; /* Add smooth transition for hover effect */
-}
-
-.gallery-item:hover {
-  transform: scale(1.05); /* Slight zoom effect on hover */
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow on hover */
 }
 
 .gallery-item img {
   width: 100%;
-  height: 90px; /* Slightly increased height */
-  object-fit: cover;
-  border-radius: 2px;
+  height: auto;
 }
 
-.gallery-item p {
-  margin: 8px 0 0 0; /* Increased top margin */
-  font-size: 0.75em; /* Slightly increased font size */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  max-height: 2.4em;
-  width: 100%;
+.generated-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.share-button {
-  margin-top: 10px;
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-  border-radius: 5px;
-}
-
-.share-message {
-  margin-top: 10px;
-  font-style: italic;
-}
-
-.right-panel button {
-  margin-top: 10px;
-}
-
-.error {
-  color: red;
-  font-weight: bold;
+.generated-content img {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  margin-bottom: 20px;
 }
 
 .generated-prompt {
-  margin-top: 20px;
-  background-color: #f0f0f0;
-  padding: 10px;
-  border-radius: 4px;
-}
-
-.generated-prompt h3 {
-  margin-top: 0;
-  font-size: 1.1em;
-}
-
-.generated-prompt p {
-  margin-bottom: 0;
-  font-style: italic;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.toast {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #333;
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: 5px;
-  z-index: 1000;
-  animation: fadeInOut 3s ease-in-out;
-}
-
-@keyframes fadeInOut {
-  0%, 100% { opacity: 0; }
-  10%, 90% { opacity: 1; }
+  text-align: center;
+  margin-bottom: 20px;
 }
 
 .about-popup {
@@ -240,24 +119,14 @@ img {
   max-width: 500px;
 }
 
-.about-content h2 {
-  margin-top: 0;
-}
-
-.about-content a {
-  color: #0066cc;
-  text-decoration: none;
-}
-
-.about-content a:hover {
-  text-decoration: underline;
-}
-
-.about-content button {
-  margin-top: 10px;
-  padding: 5px 10px;
-  background-color: #0066cc;
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
   color: white;
-  border: none;
-  cursor: pointer;
+  padding: 10px 20px;
+  border-radius: 5px;
+  z-index: 1000;
 }
