@@ -259,6 +259,60 @@ app.post('/api/test-kv', async (req, res) => {
   }
 });
 
+// Function to remove an image from Blob Store and KV store
+async function removeImage(imageUrl) {
+  if (USE_BLOB_STORE) {
+    try {
+      // Extract the pathname from the URL
+      const url = new URL(imageUrl);
+      const pathname = url.pathname.slice(1); // Remove leading slash
+
+      console.log('Attempting to delete blob:', pathname);
+      
+      // Delete the blob
+      await del(pathname, { token: BLOB_STORE_ID });
+      console.log('Blob deleted successfully');
+
+      // Remove the metadata from KV store
+      await kv.del(imageUrl);
+      console.log('Metadata removed from KV store');
+
+      return true;
+    } catch (error) {
+      console.error('Error removing image:', error);
+      return false;
+    }
+  } else {
+    // For local storage, remove from in-memory gallery
+    const index = galleryItems.findIndex(item => item.imageUrl === imageUrl);
+    if (index !== -1) {
+      galleryItems.splice(index, 1);
+      console.log('Image removed from in-memory gallery');
+      return true;
+    }
+    return false;
+  }
+}
+
+// Endpoint to remove an image
+app.delete('/api/remove-image', async (req, res) => {
+  const { imageUrl } = req.body;
+  
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'Image URL is required' });
+  }
+
+  console.log('Received request to remove image:', imageUrl);
+
+  const success = await removeImage(imageUrl);
+
+  if (success) {
+    res.json({ message: 'Image removed successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to remove image' });
+  }
+});
+
 // Export for Vercel
 export default app;
 
