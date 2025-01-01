@@ -41,3 +41,5 @@ yarn-error.log*
 /out
 
 .vscode/settings.json
+.vercel
+.env*.local

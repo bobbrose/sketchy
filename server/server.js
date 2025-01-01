@@ -8,6 +8,7 @@ import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import axios from 'axios';
 import { put, list, del } from '@vercel/blob';
+import { kv } from '@vercel/kv';
 
 dotenv.config();
 
@@ -205,6 +206,33 @@ app.delete('/api/clear-gallery', async (req, res) => {
   } catch (error) {
     console.error('Error clearing gallery:', error);
     res.status(500).json({ error: 'Failed to clear gallery', details: error.message });
+  }
+});
+
+// New endpoint to test Vercel KV
+app.post('/api/test-kv', async (req, res) => {
+  try {
+    const testData = {
+      message: "Hello, Vercel KV!",
+      color: "red",
+      timestamp: new Date().toISOString()
+    };
+
+    // Store data in KV
+    await kv.set('test-key', JSON.stringify(testData));
+    console.log('Data stored in KV');
+
+    // Retrieve data from KV
+    const retrievedData = await kv.get('test-key');
+    console.log('Data retrieved from KV:', retrievedData);
+
+    res.json({
+      stored: testData,
+      retrieved: retrievedData
+    });
+  } catch (error) {
+    console.error('Error testing KV:', error);
+    res.status(500).json({ error: 'Failed to test KV', details: error.message });
   }
 });
 
