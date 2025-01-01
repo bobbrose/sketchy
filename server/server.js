@@ -26,7 +26,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Change images directory to use /tmp in production
-const imagesDir = process.env.NODE_ENV === 'production' 
+const imagesDir = process.env.NODE_ENV === 'production'
   ? null
   : path.join(__dirname, 'images');
 
@@ -72,7 +72,7 @@ async function saveImage(imageUrl, imageId) {
         token: BLOB_STORE_ID
       });
       return url;
-    } else  {
+    } else {
       const imagePath = path.join(imagesDir, imageName);
       await fs.writeFile(imagePath, buffer);
       console.log('Image saved locally:', imagePath);
@@ -86,14 +86,11 @@ async function saveImage(imageUrl, imageId) {
 }
 
 async function generateMockImage(prompt) {
-  const imageId = uuidv4();
-  const mockImageUrl = `https://placehold.co/600x400?text=${encodeURIComponent(prompt)}`;
-  return mockImageUrl
+  return `https://placehold.co/600x400?text=${encodeURIComponent(prompt)}`;
 }
 
 app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
-
   try {
 
     // Generate prompt using ChatGPT
@@ -145,16 +142,16 @@ app.post('/api/generate-image', async (req, res) => {
     console.log('Data stored in KV');
 
     console.log('Image generation completed');
-    console.log('Response sent:', { 
-      imageUrl: imageUrl, 
+    console.log('Response sent:', {
+      imageUrl: imageUrl,
       generatedPrompt: generatedPrompt,
-      originalPrompt: prompt 
+      originalPrompt: prompt
     });
 
-    res.json({ 
-      imageUrl: imageUrl, 
+    res.json({
+      imageUrl: imageUrl,
       generatedPrompt: generatedPrompt,
-      originalPrompt: prompt 
+      originalPrompt: prompt
     });
   } catch (error) {
     console.error('Error in /api/generate-image:', error);
@@ -189,7 +186,7 @@ app.get('/api/gallery', async (req, res) => {
           };
         }
       }));
-      
+
       // Sort gallery items by creation date, newest first
       galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       res.json(galleryItems);
@@ -212,9 +209,20 @@ app.delete('/api/clear-gallery', async (req, res) => {
         await del(blob.url, { token: BLOB_STORE_ID });
       }
     }
-    
+
     galleryItems = [];
-    
+
+    // Clear the KV store
+    const keys = await kv.keys('*');
+    console.log('Number of keys to delete:', keys.length);
+
+    // Delete all keys
+    for (const key of keys) {
+      await kv.del(key);
+    }
+
+    console.log('KV store cleared successfully');
+
     res.status(200).json({ message: 'Gallery cleared successfully' });
   } catch (error) {
     console.error('Error clearing gallery:', error);
