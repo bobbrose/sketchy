@@ -135,6 +135,13 @@ button:disabled {
   max-width: 500px;
 }
 
+.about-content p:last-child {
+  margin-top: 20px;
+  font-style: italic;
+  border-top: 1px solid #ccc;
+  padding-top: 10px;
+}
+
 .toast {
   position: fixed;
   bottom: 20px;

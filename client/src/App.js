@@ -96,12 +96,15 @@ function App() {
             </p>
             <p>
               <a href="https://bobbrose.com" target="_blank" rel="noopener noreferrer">Created by Bob Rose</a>
-              <p>
-                Open source, available under the MIT License.  Feel free to clone and contribute or just learn from it.
-                </p>
-              <p>
-                Created images are shared in gallery - no guarantee of quality or permanence.  Download and save any images you like if you want to keep them.
-              </p>
+            </p>
+            <p>
+              Open source, available under the MIT License. Feel free to clone and contribute or just learn from it.
+            </p>
+            <p>
+              Created images are shared in gallery - no guarantee of quality or permanence. Download and save any images you like if you want to keep them.
+            </p>
+            <p>
+              This project was developed with the assistance of <a href="https://www.augmentcode.com/" target="_blank" rel="noopener noreferrer">Augment Code</a>, an AI-powered coding assistant.
             </p>
             <button onClick={() => setIsAboutOpen(false)}>Close</button>
           </div>
