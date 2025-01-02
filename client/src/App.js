@@ -45,11 +45,12 @@ function App() {
     setLoading(true);
     setError(null);
     setGeneratedPrompt('');
+    setImage(null); // Clear the previous image
     try {
       const response = await axios.post(`${API_BASE_URL}/generate-image`, { prompt });
       setImage(response.data.imageUrl);
       setGeneratedPrompt(response.data.generatedPrompt);
-      setOriginalPrompt(response.data.originalPrompt); // Set the original prompt
+      setOriginalPrompt(response.data.originalPrompt);
       fetchGallery();
     } catch (error) {
       console.error('Error generating image:', error);
@@ -99,7 +100,7 @@ function App() {
                 Open source, available under the MIT License.  Feel free to clone and contribute or just learn from it.
                 </p>
               <p>
-                Created images are shared in gallery - no guarantee of quality, or permanence.  Download and save any images you like if you want to keep them.
+                Created images are shared in gallery - no guarantee of quality or permanence.  Download and save any images you like if you want to keep them.
               </p>
             </p>
             <button onClick={() => setIsAboutOpen(false)}>Close</button>
@@ -115,8 +116,9 @@ function App() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter a song or artist..."
+              disabled={loading} // Disable input while loading
             />
-            <button type="submit" disabled={loading}>
+            <button type="submit" disabled={loading || !(prompt && prompt.trim())}>
               {loading ? 'Generating...' : 'Generate Soundscape'}
             </button>
           </form>

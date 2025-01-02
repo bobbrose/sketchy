@@ -57,7 +57,7 @@ form {
 
 input[type="text"] {
   flex: 1;
-  max-width: 300px; /* Adjust this value as needed */
+  max-width: 450px; /* Adjust this value as needed */
   padding: 10px;
   margin-bottom: 0; /* Remove bottom margin */
 }
@@ -69,6 +69,17 @@ button {
   border: none;
   cursor: pointer;
   white-space: nowrap; /* Prevent button text from wrapping */
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+button:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
 }
 
 .gallery {
