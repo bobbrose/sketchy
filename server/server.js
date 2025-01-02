@@ -225,23 +225,23 @@ app.delete('/api/clear-gallery', checkApiKey, async (req, res) => {
   try {
     if (USE_BLOB_STORE) {
       const { blobs } = await list({ token: BLOB_STORE_ID });
+      console.log('Number of blobs to delete:', blobs.length);
+
       for (const blob of blobs) {
+        // Delete the blob
         await del(blob.url, { token: BLOB_STORE_ID });
+        console.log('Deleted blob:', blob.url);
+
+        // Delete the corresponding KV entry
+        await kv.del(blob.url);
+        console.log('Deleted KV entry for:', blob.url);
       }
     }
 
+    // Clear in-memory gallery items
     galleryItems = [];
 
-    // Clear the KV store
-    const keys = await kv.keys('*');
-    console.log('Number of keys to delete:', keys.length);
-
-    // Delete all keys
-    for (const key of keys) {
-      await kv.del(key);
-    }
-
-    console.log('KV store cleared successfully');
+    console.log('Gallery cleared successfully');
 
     res.status(200).json({ message: 'Gallery cleared successfully' });
   } catch (error) {
