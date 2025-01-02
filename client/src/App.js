@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/react"
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
