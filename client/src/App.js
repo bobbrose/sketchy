@@ -155,6 +155,7 @@ function App() {
         </div>
       </div>
       {toast && <div className="toast">{toast}</div>}
+      <Analytics />
     </div>
   );
 }

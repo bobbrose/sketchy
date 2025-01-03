@@ -8,11 +8,11 @@
         "client": "cd client && npm start"
     },
     "devDependencies": {
-        "concurrently": "^6.2.0"
+        "concurrently": "^8.2.2"
     },
     "dependencies": {
-        "@vercel/analytics": "^1.4.1",
-        "@vercel/kv": "^3.0.0",
-        "dotenv": "^16.4.7"
+        "@vercel/analytics": "^1.1.1",
+        "@vercel/kv": "^1.0.1",
+        "dotenv": "^16.3.1"
     }
 }
