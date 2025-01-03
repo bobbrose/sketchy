@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Analytics } from '@vercel/analytics/react';
 
 import './App.css';
 
