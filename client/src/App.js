@@ -151,6 +151,8 @@ function App() {
             </div>
           )}
           {!image && !loading && !error && <p>Your generated image will appear here</p>}
+          <Analytics />
+
         </div>
       </div>
       {toast && <div className="toast">{toast}</div>}
