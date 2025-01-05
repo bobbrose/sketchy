@@ -81,7 +81,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Soundscapes - Create images inspired from bands and songs</h1>
+        <h1>Soundscapes - Create images inspired from musical artists and songs</h1>
         <button onClick={() => setIsAboutOpen(true)}>About</button>
       </header>
       
