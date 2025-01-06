@@ -16,7 +16,8 @@ function App() {
   const [gallery, setGallery] = useState([]);
   const [toast, setToast] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  
+  const [cachedImages, setCachedImages] = useState({});
+
   // Check if the COMING_SOON variable is true, if so show a coming soon page.
   const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
   useEffect(() => {
@@ -33,9 +34,24 @@ function App() {
   const fetchGallery = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/gallery`);
-      setGallery(response.data);
+      if (response.data.galleryItems) {
+        setGallery(response.data.galleryItems);
+        
+        // Pre-cache images
+        response.data.galleryItems.forEach(item => {
+          if (!cachedImages[item.imageUrl]) {
+            const img = new Image();
+            img.src = item.imageUrl;
+            setCachedImages(prev => ({ ...prev, [item.imageUrl]: img }));
+          }
+        });
+      } else {
+        console.error('Unexpected gallery data structure:', response.data);
+        setGallery([]);
+      }
     } catch (error) {
       console.error('Error fetching gallery:', error);
+      setGallery([]);
     }
   };
 
@@ -127,7 +143,10 @@ function App() {
           <div className="gallery">
             {gallery.map((item, index) => (
               <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
-                <img src={item.imageUrl} alt={item.originalPrompt} />
+                <img 
+                  src={cachedImages[item.imageUrl] ? cachedImages[item.imageUrl].src : item.imageUrl} 
+                  alt={item.originalPrompt} 
+                />
                 <p>{item.originalPrompt}</p>
               </div>
             ))}

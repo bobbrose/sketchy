@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import axios from 'axios';
 import { put, list, del } from '@vercel/blob';
 import { kv } from '@vercel/kv';
+import compression from 'compression';
 
 dotenv.config();
 
@@ -18,6 +19,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(compression());
+
+// Add a middleware to set cache headers for images
+const setCacheControl = (req, res, next) => {
+  if (req.url.startsWith('/api/images/')) {
+    // Cache images for 1 day (86400 seconds)
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
+  next();
+};
+
+app.use(setCacheControl);
 
 // Add this near the top of your file
 const API_KEY = process.env.ADMIN_API_KEY;
@@ -186,7 +199,11 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Number of blobs retrieved:', blobs.length);
 
-      const galleryItems = await Promise.all(blobs.map(async (blob) => {
+      // Limit the number of items to process and return
+      const MAX_ITEMS = 20; // Adjust this number as needed
+      const limitedBlobs = blobs.slice(0, MAX_ITEMS);
+
+      const galleryItems = await Promise.all(limitedBlobs.map(async (blob) => {
         // Retrieve metadata from KV
         const metadata = await kv.get(blob.url);
         console.log('Data retrieved from KV:', metadata);
@@ -209,7 +226,12 @@ app.get('/api/gallery', async (req, res) => {
 
       // Sort gallery items by creation date, newest first
       galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      res.json(galleryItems);
+
+      res.json({
+        galleryItems: galleryItems,
+        totalItems: blobs.length,
+        returnedItems: galleryItems.length
+      });
     } catch (error) {
       console.error('Error fetching gallery from Blob Store:', error);
       res.status(500).json({ error: 'Failed to fetch gallery' });
