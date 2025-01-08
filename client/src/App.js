@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -27,11 +27,7 @@ function App() {
     }
   }, [isComingSoon]);
 
-  useEffect(() => {
-    fetchGallery();
-  }, []);
-
-  const fetchGallery = async () => {
+  const fetchGallery = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/gallery`);
       if (response.data.galleryItems) {
@@ -53,7 +49,11 @@ function App() {
       console.error('Error fetching gallery:', error);
       setGallery([]);
     }
-  };
+  }, [API_BASE_URL, cachedImages]);
+
+  useEffect(() => {
+    fetchGallery();
+  }, [fetchGallery]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
