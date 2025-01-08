@@ -49,7 +49,7 @@ function App() {
       console.error('Error fetching gallery:', error);
       setGallery([]);
     }
-  }, [API_BASE_URL, cachedImages]);
+  }, [cachedImages]);
 
   useEffect(() => {
     fetchGallery();
