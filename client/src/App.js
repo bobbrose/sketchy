@@ -5,8 +5,11 @@ import './App.css';
 // Use environment variable for API URL
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
-function App() {
+if (process.env.NODE_ENV === 'development') {
   console.log('API_BASE_URL:', API_BASE_URL);
+}
+
+function App() {
   const [prompt, setPrompt] = useState('');
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [image, setImage] = useState(null);
@@ -17,6 +20,14 @@ function App() {
   const [toast, setToast] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [cachedImages, setCachedImages] = useState({});
+
+  const cacheImage = useCallback((imageUrl) => {
+    if (!cachedImages[imageUrl]) {
+      const img = new Image();
+      img.src = imageUrl;
+      setCachedImages(prev => ({ ...prev, [imageUrl]: img }));
+    }
+  }, [cachedImages]);
 
   // Check if the COMING_SOON variable is true, if so show a coming soon page.
   const isComingSoon = process.env.REACT_APP_COMING_SOON === 'true';
@@ -30,26 +41,25 @@ function App() {
   const fetchGallery = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/gallery`);
-      if (response.data.galleryItems) {
-        setGallery(response.data.galleryItems);
-        
-        // Pre-cache images
-        response.data.galleryItems.forEach(item => {
-          if (!cachedImages[item.imageUrl]) {
-            const img = new Image();
-            img.src = item.imageUrl;
-            setCachedImages(prev => ({ ...prev, [item.imageUrl]: img }));
-          }
-        });
+      let galleryItems = [];
+
+      if (Array.isArray(response.data)) {
+        // New structure: direct array
+        galleryItems = response.data;
+      } else if (response.data && Array.isArray(response.data.galleryItems)) {
+        // Old structure: object with galleryItems property
+        galleryItems = response.data.galleryItems;
       } else {
         console.error('Unexpected gallery data structure:', response.data);
-        setGallery([]);
       }
+
+      setGallery(galleryItems);
+      galleryItems.forEach(item => cacheImage(item.imageUrl));
     } catch (error) {
       console.error('Error fetching gallery:', error);
       setGallery([]);
     }
-  }, [cachedImages]);
+  }, [cacheImage]);
 
   useEffect(() => {
     fetchGallery();
@@ -76,10 +86,10 @@ function App() {
   };
 
   const handleGalleryItemClick = (item) => {
-    setPrompt(item.prompt);
-    setGeneratedPrompt(item.generatedPrompt);
-    setOriginalPrompt(item.originalPrompt);
-    setImage(item.imageUrl);
+    setPrompt(item.prompt || ''); // Ensure it's never undefined
+    setGeneratedPrompt(item.generatedPrompt || '');
+    setOriginalPrompt(item.originalPrompt || '');
+    setImage(item.imageUrl || null);
   };
 
   const handleShare = () => {
@@ -145,9 +155,9 @@ function App() {
               <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
                 <img 
                   src={cachedImages[item.imageUrl] ? cachedImages[item.imageUrl].src : item.imageUrl} 
-                  alt={item.originalPrompt} 
+                  alt={item.originalPrompt || ''} 
                 />
-                <p>{item.originalPrompt}</p>
+                <p>{item.originalPrompt || ''}</p>
               </div>
             ))}
           </div>
