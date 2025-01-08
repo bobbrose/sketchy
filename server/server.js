@@ -326,6 +326,55 @@ app.delete('/api/remove-image', checkApiKey, async (req, res) => {
   }
 });
 
+// Add this new endpoint after the clear-gallery endpoint
+app.post('/api/reduce-gallery', checkApiKey, async (req, res) => {
+  const { count } = req.body;
+  
+  if (!count || isNaN(count) || count < 0) {
+    return res.status(400).json({ error: 'Invalid count provided' });
+  }
+
+  try {
+    if (USE_BLOB_STORE) {
+      const { blobs } = await list({ token: BLOB_STORE_ID });
+      console.log('Total number of blobs:', blobs.length);
+
+      // Sort blobs by uploadedAt, newest first
+      blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+      // Keep only the specified number of most recent blobs
+      const blobsToDelete = blobs.slice(count);
+      console.log('Number of blobs to delete:', blobsToDelete.length);
+
+      for (const blob of blobsToDelete) {
+        // Delete the blob
+        await del(blob.url, { token: BLOB_STORE_ID });
+        console.log('Deleted blob:', blob.url);
+
+        // Delete the corresponding KV entry
+        await kv.del(blob.url);
+        console.log('Deleted KV entry for:', blob.url);
+      }
+
+      res.status(200).json({ 
+        message: `Gallery reduced successfully. Kept ${count} most recent images, deleted ${blobsToDelete.length} images.` 
+      });
+    } else {
+      // For in-memory storage
+      galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const deletedCount = Math.max(0, galleryItems.length - count);
+      galleryItems = galleryItems.slice(0, count);
+      
+      res.status(200).json({ 
+        message: `Gallery reduced successfully. Kept ${count} most recent images, deleted ${deletedCount} images.` 
+      });
+    }
+  } catch (error) {
+    console.error('Error reducing gallery:', error);
+    res.status(500).json({ error: 'Failed to reduce gallery', details: error.message });
+  }
+});
+
 // Export for Vercel
 export default app;
 
