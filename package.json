@@ -5,7 +5,8 @@
         "install-all": "npm install && (cd client && npm install) && (cd server && npm install)",
         "start": "concurrently \"npm run server\" \"npm run client\"",
         "server": "cd server && npm start",
-        "client": "cd client && npm start"
+        "client": "cd client && npm start",
+        "build": "cd client && npm install && npm run build && cd ../server && npm install"
     },
     "devDependencies": {
         "concurrently": "^8.2.2"
