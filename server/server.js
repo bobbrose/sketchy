@@ -199,8 +199,11 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Number of blobs retrieved:', blobs.length);
 
+      // Sort blobs by uploadedAt, newest first
+      blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
       // Limit the number of items to process and return
-      const MAX_ITEMS = 20; // Adjust this number as needed
+      const MAX_ITEMS = 30; // Adjust this number as needed
       const limitedBlobs = blobs.slice(0, MAX_ITEMS);
 
       const galleryItems = await Promise.all(limitedBlobs.map(async (blob) => {
@@ -223,9 +226,6 @@ app.get('/api/gallery', async (req, res) => {
           };
         }
       }));
-
-      // Sort gallery items by creation date, newest first
-      galleryItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       res.json({
         galleryItems: galleryItems,
