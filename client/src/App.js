@@ -5,9 +5,8 @@ import './App.css';
 // Use environment variable for API URL
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
-if (process.env.NODE_ENV === 'development') {
   console.log('API_BASE_URL:', API_BASE_URL);
-}
+
 
 function App() {
   const [prompt, setPrompt] = useState('');
@@ -54,7 +53,10 @@ function App() {
       }
 
       setGallery(galleryItems);
-      galleryItems.forEach(item => cacheImage(item.imageUrl));
+      galleryItems.forEach(item => {
+        cacheImage(item.thumbnailUrl || item.imageUrl);
+        cacheImage(item.imageUrl);
+      });
     } catch (error) {
       console.error('Error fetching gallery:', error);
       setGallery([]);
@@ -154,7 +156,7 @@ function App() {
             {gallery.map((item, index) => (
               <div key={index} className="gallery-item" onClick={() => handleGalleryItemClick(item)}>
                 <img 
-                  src={cachedImages[item.imageUrl] ? cachedImages[item.imageUrl].src : item.imageUrl} 
+                  src={cachedImages[item.thumbnailUrl] ? cachedImages[item.thumbnailUrl].src : (item.thumbnailUrl || item.imageUrl)} 
                   alt={item.originalPrompt || ''} 
                 />
                 <p>{item.originalPrompt || ''}</p>

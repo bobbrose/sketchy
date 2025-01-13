@@ -10,6 +10,7 @@ import axios from 'axios';
 import { put, list, del } from '@vercel/blob';
 import { kv } from '@vercel/kv';
 import compression from 'compression';
+import Jimp from 'jimp';
 
 dotenv.config();
 
@@ -92,24 +93,64 @@ console.log('BLOB_STORE_ID:', BLOB_STORE_ID);
 // In-memory storage for gallery items
 let galleryItems = [];
 
+async function createThumbnail(imageBuffer) {
+  try {
+    const image = await Jimp.read(imageBuffer);
+    console.log('Creating thumbnail...');
+    return await image
+      .cover(300, 300) // Similar to sharp's 'cover' fit
+      .quality(80)     // Set JPEG quality
+      .getBufferAsync(Jimp.MIME_JPEG);
+  } catch (error) {
+    console.error('Error creating thumbnail:', error);
+    throw error;
+  }
+}
+
 async function saveImage(imageUrl, imageId) {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     const buffer = Buffer.from(response.data, 'binary');
+    
+    // Create thumbnail using Jimp
+    const thumbnailBuffer = await createThumbnail(buffer);
+    
     const imageName = `${imageId}.png`;
+    const thumbnailName = `${imageId}_thumb.jpg`;
 
     if (USE_BLOB_STORE) {
-      const { url } = await put(imageName, buffer, {
+      // Save main image
+      const { url: mainUrl } = await put(imageName, buffer, {
         access: 'public',
         addRandomSuffix: false,
         token: BLOB_STORE_ID
       });
-      return url;
+
+      // Save thumbnail
+      const { url: thumbUrl } = await put(thumbnailName, thumbnailBuffer, {
+        access: 'public',
+        addRandomSuffix: false,
+        token: BLOB_STORE_ID
+      });
+      console.log('Image and thumbnail saved to Blob Store:', mainUrl, thumbUrl);
+      return {
+        imageUrl: mainUrl,
+        thumbnailUrl: thumbUrl
+      };
     } else {
+      // Local storage
       const imagePath = path.join(imagesDir, imageName);
+      const thumbnailPath = path.join(imagesDir, thumbnailName);
+      
       await fs.writeFile(imagePath, buffer);
-      console.log('Image saved locally:', imagePath);
-      return LOCAL_API_URL + `/images/${imageName}`;
+      await fs.writeFile(thumbnailPath, thumbnailBuffer);
+      
+      console.log('Image and thumbnail saved locally:', imagePath);
+      
+      return {
+        imageUrl: `${LOCAL_API_URL}/images/${imageName}`,
+        thumbnailUrl: `${LOCAL_API_URL}/images/${thumbnailName}`
+      };
     }
   } catch (error) {
     console.error('Error saving image:', error);
@@ -142,7 +183,7 @@ app.post('/api/generate-image', async (req, res) => {
     }
     console.log('Getting image, use openai?', USE_OPENAI_API);
 
-    let imageUrl;
+    let imageUrl, thumbnailUrl;
     if (USE_OPENAI_API) {
       const response = await openai.images.generate({
         model: "dall-e-3",
@@ -152,18 +193,20 @@ app.post('/api/generate-image', async (req, res) => {
         size: "1024x1024",
       });
 
-      imageUrl = response.data[0].url;
       const imageId = uuidv4();
-      console.log('Image URL:', imageUrl);
-      imageUrl = await saveImage(imageUrl, imageId);
+      const urls = await saveImage(response.data[0].url, imageId);
+      imageUrl = urls.imageUrl;
+      thumbnailUrl = urls.thumbnailUrl;
     } else {
       imageUrl = await generateMockImage(prompt);
+      thumbnailUrl = imageUrl; // For mock images, use same URL
     }
 
     const metadata = {
       originalPrompt: prompt,
       generatedPrompt: generatedPrompt,
       imageUrl: imageUrl,
+      thumbnailUrl: thumbnailUrl,
       createdAt: new Date().toISOString(),
     };
 
@@ -175,14 +218,9 @@ app.post('/api/generate-image', async (req, res) => {
     console.log('Data stored in KV');
 
     console.log('Image generation completed');
-    console.log('Response sent:', {
-      imageUrl: imageUrl,
-      generatedPrompt: generatedPrompt,
-      originalPrompt: prompt
-    });
-
     res.json({
       imageUrl: imageUrl,
+      thumbnailUrl: thumbnailUrl,
       generatedPrompt: generatedPrompt,
       originalPrompt: prompt
     });
@@ -199,37 +237,38 @@ app.get('/api/gallery', async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Number of blobs retrieved:', blobs.length);
 
-      // Sort blobs by uploadedAt, newest first
-      blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      // Filter out thumbnail blobs and sort by uploadedAt
+      const mainBlobs = blobs
+        .filter(blob => !blob.pathname.includes('_thumb'))
+        .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
       // Limit the number of items to process and return
-      const MAX_ITEMS = 30; // Adjust this number as needed
-      const limitedBlobs = blobs.slice(0, MAX_ITEMS);
+      const MAX_ITEMS = 20;
+      const limitedBlobs = mainBlobs.slice(0, MAX_ITEMS);
 
       const galleryItems = await Promise.all(limitedBlobs.map(async (blob) => {
-        // Retrieve metadata from KV
         const metadata = await kv.get(blob.url);
-        console.log('Data retrieved from KV:', metadata);
-
+        console.log('Metadata for blob:', blob.url, metadata);
         if (metadata) {
           return {
-            imageUrl: blob.url,
+            imageUrl: metadata.imageUrl,
+            thumbnailUrl: metadata.thumbnailUrl || metadata.imageUrl, // Fallback to main image if no thumbnail
             originalPrompt: metadata.originalPrompt,
             generatedPrompt: metadata.generatedPrompt,
             createdAt: metadata.createdAt
           };
         } else {
-          // Fallback if metadata is not found
           return {
             imageUrl: blob.url,
-            createdAt: blob.uploadedAt // Use blob's upload time as fallback
+            thumbnailUrl: blob.url, // Fallback to main image if no thumbnail
+            createdAt: blob.uploadedAt
           };
         }
       }));
 
       res.json({
         galleryItems: galleryItems,
-        totalItems: blobs.length,
+        totalItems: mainBlobs.length,
         returnedItems: galleryItems.length
       });
     } catch (error) {
