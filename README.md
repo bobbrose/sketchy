@@ -93,6 +93,9 @@ This project is open source under the MIT License. See [LICENSE](LICENSE) for de
 - Created by [Bob Rose](https://bobbrose.com)
 - Developed with assistance from [Augment Code](https://www.augmentcode.com/)
 
-## Support
+## Support & Feedback
 
-For issues and feature requests, please [open an issue](https://github.com/bobbrose/sketchy/issues).
+- For issues and feature requests, please [open an issue](https://github.com/bobbrose/sketchy/issues)
+- Try it out and let me know what you think! 
+- Share your favorite generated images on LinkedIn and tag [Bob Rose](https://www.linkedin.com/in/bobbrose/)
+- Star ⭐ the repo if you found it interesting
