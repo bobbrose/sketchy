@@ -1,83 +1,98 @@
 # Sketchy
 
-React app to make an image from a song or artist.
+Create AI-generated artwork inspired by songs and musical artists. This app uses OpenAI's GPT and DALL-E to generate unique visual interpretations of music.
 
-Uses OpenAI API to generate a specific prompt that is tailored to music and then creates the image from that prompt.
+## Features
 
-A learning project from [Bob Rose](https://bobbrose.com)
+- Generate AI artwork from any song or artist name
+- View gallery of previously generated images
+- Share generated images via URL
+- Responsive design that works on mobile and desktop
+- Automatic image optimization and caching
 
-## Setup Instructions
+## How It Works
 
-To try Sketchy:
+1. Enter a song or artist name
+2. GPT generates a detailed visual description based on the music
+3. DALL-E creates artwork from that description
+4. Image is optimized and stored for sharing
+
+## Tech Stack
+
+- **Frontend**: React
+- **Backend**: Node.js + Express
+- **AI**: OpenAI (GPT-3.5 + DALL-E 3)
+- **Storage**: 
+  - Images: Vercel Blob Storage
+  - Metadata: Vercel KV (Redis)
+- **Deployment**: Vercel
+
+## Local Development Setup
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/bobbrose/sketchy.git
    cd sketchy
    ```
 
 2. Install dependencies:
-   ```
+   ```bash
    npm run install-all
    ```
 
-3. Create a `.env` file in the server directory and add your OpenAI API key:
-   ```
-   OPENAI_API_KEY=your_actual_openai_api_key
+3. Create `.env` files:
+
+   In `/server/.env`:
+   ```bash
+   OPENAI_API_KEY=your_openai_api_key
+   USE_OPENAI_API=true  # Set to false to use mock API
+   ADMIN_API_KEY=your_admin_key  # For protected endpoints
    ```
 
-4. By default, it will use a mock API to save on server calls. To use the real OpenAI API, add this to your `.env` file:
-   ```
-   USE_OPENAI_API=true
-   ```
-
-5. For production deployment on Vercel, set up the following:
-   - Vercel KV for data storage
-   - Vercel Blob Store for image storage
-   Add the following to your `.env` file (and Vercel environment variables):
-   ```
-   BLOB_READ_WRITE_TOKEN=your_blob_store_token
-   KV_REST_API_URL=your_kv_rest_api_url
-   KV_REST_API_TOKEN=your_kv_rest_api_token
+   For production features (optional):
+   ```bash
+   BLOB_READ_WRITE_TOKEN=your_blob_token
+   KV_REST_API_URL=your_kv_url
+   KV_REST_API_TOKEN=your_kv_token
    ```
 
-6. Set up an admin API key for protected endpoints:
-   ```
-   ADMIN_API_KEY=your_secure_admin_api_key
-   ```
-
-7. Start the backend server:
-   ```
+4. Start development servers:
+   ```bash
+   # Terminal 1 - Backend (http://localhost:3001)
    npm run server
-   ```
 
-8. In a new terminal, start the React development server:
-   ```
+   # Terminal 2 - Frontend (http://localhost:3000)
    npm run client
    ```
 
-9. Open your browser and navigate to http://localhost:3000 to view the app.
-## Project Structure
+## Environment Variables
 
-- `client/`: Contains the React frontend application
-- `server/`: Contains the Node.js backend server
-- `package.json`: Root-level package for running both client and server
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| `OPENAI_API_KEY` | OpenAI API authentication | Yes |
+| `USE_OPENAI_API` | Enable real API vs mock | No (defaults false) |
+| `ADMIN_API_KEY` | Protect admin endpoints | Yes for admin features |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob Storage access | Production only |
+| `KV_REST_API_TOKEN` | Vercel KV access | Production only |
 
-## Technologies Used
+## API Endpoints
 
-- Frontend: React
-- Backend: Node.js with Express
-- API: OpenAI for prompt generation and image creation
-- Storage: Vercel KV for data storage, Vercel Blob Store for image storage
-- Deployment: Vercel
+- `POST /api/generate-image` - Generate new artwork
+- `GET /api/gallery` - Retrieve gallery images
+- `DELETE /api/clear-gallery` - Admin: Clear gallery
+- `DELETE /api/remove-image` - Admin: Remove specific image
+- `POST /api/reduce-gallery` - Admin: Reduce gallery size
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is open source under the MIT License. See [LICENSE](LICENSE) for details.
+
 ## Credits
 
-This project was developed with the assistance of [Augment Code](https://www.augmentcode.com/), an AI-powered coding assistant.
+- Created by [Bob Rose](https://bobbrose.com)
+- Developed with assistance from [Augment Code](https://www.augmentcode.com/)
+
+## Support
+
+For issues and feature requests, please [open an issue](https://github.com/bobbrose/sketchy/issues).

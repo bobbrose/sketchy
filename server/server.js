@@ -22,10 +22,9 @@ app.use(cors());
 app.use(express.json());
 app.use(compression());
 
-// Add a middleware to set cache headers for images
+// Custom cache control middleware
 const setCacheControl = (req, res, next) => {
   if (req.url.startsWith('/api/images/')) {
-    // Cache images for 1 day (86400 seconds)
     res.setHeader('Cache-Control', 'public, max-age=86400');
   }
   next();
@@ -36,7 +35,7 @@ app.use(setCacheControl);
 // Add this near the top of your file
 const API_KEY = process.env.ADMIN_API_KEY;
 
-// Middleware to check API key
+// API key check middleware
 const checkApiKey = (req, res, next) => {
   const providedApiKey = req.query.api_key || req.headers['x-api-key'];
   
