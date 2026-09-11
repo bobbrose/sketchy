@@ -2,7 +2,7 @@
 
 Create AI-generated artwork inspired by songs and musical artists. This app uses OpenAI's GPT to write a detailed visual description of a song or artist, then an OpenAI image model to turn that description into artwork.
 
-See [docs/vision.md](docs/vision.md) for why it's built this way (and how it differs from just asking a chatbot for "an image of a song"), and [docs/tech-spec.md](docs/tech-spec.md) for how it's built and how to maintain it.
+See [docs/vision.md](docs/vision.md) for why it's built this way (and how it differs from just asking a chatbot for "an image of a song"), [docs/tech-spec.md](docs/tech-spec.md) for how it's built and how to maintain it, and [docs/security.md](docs/security.md) for abuse/DDoS protection, rate limiting, and known gaps.
 
 ## Features
 
