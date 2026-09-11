@@ -16,10 +16,43 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Cross-origin calls only ever come from local dev (client on :3000, server
+// on :3001) or a Vercel preview/production deployment - in production the
+// client calls its own API same-origin (REACT_APP_API_URL=/api), so this
+// only matters for blocking some other site from scripting calls to the
+// (paid, OpenAI-backed) API through a visitor's browser.
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^http:\/\/localhost:3000$/,
+  /^https:\/\/([a-z0-9-]+\.)?sketchyai\.app$/,
+  /^https:\/\/sketchy(-[a-z0-9]+)?-bobbroses-projects\.vercel\.app$/,
+  /^https:\/\/sketchy-orpin\.vercel\.app$/,
+];
+
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // No Origin header means same-origin (or a non-browser client, e.g.
+    // curl/server-to-server) - not something CORS can or should police.
+    if (!origin || ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))) {
+      return callback(null, true);
+    }
+    // Deny without throwing: the browser still blocks the request client-side
+    // for lacking an Access-Control-Allow-Origin header either way, but this
+    // avoids logging every blocked probe as a noisy 500.
+    callback(null, false);
+  },
+}));
 app.use(express.json());
-app.use(compression());
+// Skip compression on the streaming generate-image route: compression
+// buffers writes until it has enough data to decide whether to compress,
+// which would hold back the progress events below until the whole response
+// is ready - defeating the point of streaming them.
+app.use(compression({
+  filter: (req, res) => {
+    if (req.path === '/api/generate-image') return false;
+    return compression.filter(req, res);
+  }
+}));
 
 // Custom cache control middleware
 const setCacheControl = (req, res, next) => {
@@ -158,16 +191,132 @@ async function generateMockImage(prompt) {
   return `https://placehold.co/600x400?text=${encodeURIComponent(prompt)}`;
 }
 
+function isSafetySystemRejection(error) {
+  return typeof error?.message === 'string' && error.message.includes('safety system');
+}
+
+// Note: 'dall-e-3' has been retired; the gpt-image family is current and
+// returns images as base64 (b64_json) rather than a URL.
+// - "medium" quality instead of "high": OpenAI's own docs put roughly a 15x
+//   gap in tokens (and latency/cost) between low and high at the same
+//   resolution - high is the slow, "production asset" tier, not what an
+//   interactive wait-and-watch UI wants. Medium is the balanced middle.
+// - moderation: "low" loosens (doesn't disable) the content filter, so
+//   fewer prompts trip the safety system and need the fallback chain below
+//   at all - a real latency win given how often it was firing.
+async function generateImageFromPrompt(promptText) {
+  return openai.images.generate({
+    model: "gpt-image-1",
+    prompt: promptText,
+    n: 1,
+    quality: "medium",
+    size: "1024x1024",
+    moderation: "low",
+  });
+}
+
+// Asks GPT to rewrite a prompt so it no longer names or otherwise identifies
+// any real, specific person - last-resort fallback for when even a
+// simplified prompt still gets flagged for describing someone's likeness.
+async function removeNamedIndividuals(promptText) {
+  const rewritePrompt = `Rewrite the following so it no longer names or otherwise identifies any real, specific person (remove names, nicknames, and initials that refer to them), while keeping the same mood, setting, and visual style, under 500 characters: "${promptText}"`;
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: rewritePrompt }],
+  });
+  return completion.choices[0].message.content.trim();
+}
+
+// Tries the art-directed prompt, then a simplified one, then one with any
+// named real person stripped out - each step only runs after the previous
+// one is specifically rejected by OpenAI's safety system (any other error
+// propagates immediately). Returns the response and whichever prompt
+// actually produced it; throws a friendly, user-facing error if all three
+// are blocked.
+async function generateImageWithSafetyFallback(originalPrompt, artDirectedPrompt) {
+  const simplifiedPrompt = `${originalPrompt} show an image that represents what someone might think of when seeing this prompt`;
+
+  for (const candidatePrompt of [artDirectedPrompt, simplifiedPrompt]) {
+    try {
+      const response = await generateImageFromPrompt(candidatePrompt);
+      return { response, generatedPrompt: candidatePrompt };
+    } catch (error) {
+      if (!isSafetySystemRejection(error)) throw error;
+      console.warn('Image rejected by safety system, trying next fallback:', error.message);
+    }
+  }
+
+  const namelessPrompt = `${await removeNamedIndividuals(originalPrompt)} show an image that represents what someone might think of when seeing this prompt`;
+  try {
+    const response = await generateImageFromPrompt(namelessPrompt);
+    return { response, generatedPrompt: namelessPrompt };
+  } catch (error) {
+    if (!isSafetySystemRejection(error)) throw error;
+    const friendlyError = new Error("Sorry, this image can't be generated.");
+    friendlyError.isSafetyBlocked = true;
+    throw friendlyError;
+  }
+}
+
+// Per-IP rate limit for the one endpoint that actually costs money (it
+// calls OpenAI). Backed by Vercel KV rather than an in-memory counter,
+// since serverless invocations don't share memory - a fresh instance would
+// otherwise reset the count on every request. Configurable via env vars so
+// the limit can be tuned without a code change.
+const RATE_LIMIT_MAX_REQUESTS = Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 8;
+const RATE_LIMIT_WINDOW_SECONDS = Number(process.env.RATE_LIMIT_WINDOW_SECONDS) || 600; // 10 minutes
+
+function getClientIp(req) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+  return req.socket.remoteAddress;
+}
+
+// Returns true if this IP is still under its limit (and counts this call
+// against it); false if it should be rejected.
+async function checkRateLimit(ip) {
+  const key = `ratelimit:generate-image:${ip}`;
+  const count = await kv.incr(key);
+  if (count === 1) {
+    await kv.expire(key, RATE_LIMIT_WINDOW_SECONDS);
+  }
+  return count <= RATE_LIMIT_MAX_REQUESTS;
+}
+
 app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
-  try {
 
+  const clientIp = getClientIp(req);
+  if (!(await checkRateLimit(clientIp))) {
+    console.warn('Rate limit exceeded for', clientIp);
+    res.status(429).setHeader('Content-Type', 'application/x-ndjson');
+    res.write(JSON.stringify({
+      status: 'error',
+      error: "You're generating a bit fast - please wait a few minutes and try again.",
+    }) + '\n');
+    return res.end();
+  }
+
+  // Stream progress as newline-delimited JSON so the client can show real
+  // status transitions (e.g. "now creating the thumbnail") instead of
+  // guessing at timings. The HTTP status is always 200 once streaming
+  // starts - success/failure is signaled by the final "done"/"error" event
+  // instead, since headers can't change after the first write.
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  const sendEvent = (data) => res.write(JSON.stringify(data) + '\n');
+
+  try {
     // Generate prompt using ChatGPT
     let generatedPrompt;
     if (USE_OPENAI_API) {
-      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or band, under 500 characters, keep it safe and non explicit, use the bands images, iconography, or unique graphics if available: "${prompt}". The description should describe the song or artist in vivid detail with speciifc references to the song or something distinctive about the artist so an image can be generated from the description. If there is an iconic logo or visual reference for the band, include that in the image.`;
+      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or band, under 500 characters, keep it safe and non explicit, use the band's iconography, album art style, color palette, or unique graphics if available: "${prompt}". The description should describe the song or artist in vivid detail with specific references to the song or something distinctive about the artist so an image can be generated from the description. Favor mood, setting, symbolic or stylized visual elements (an iconic outfit or prop, a stage setup, an album-cover aesthetic, a silhouette) over describing any real person's actual face or likeness. If there is an iconic logo or visual reference for the band, include that in the image.`;
+      // gpt-4o-mini instead of the older/weaker gpt-3.5-turbo: similar cost
+      // and speed, but noticeably better at following the detailed art
+      // direction instructions above instead of regressing to something
+      // generic - this prompt is the whole differentiator of the app, so
+      // its quality matters more than the image model's.
       const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: wrappedPrompt }],
       });
 
@@ -177,18 +326,15 @@ app.post('/api/generate-image', async (req, res) => {
       generatedPrompt = prompt;
     }
     console.log('Getting image, use openai?', USE_OPENAI_API);
+    sendEvent({ status: 'creating-image' });
 
     let imageUrl, thumbnailUrl;
     if (USE_OPENAI_API) {
-      // Note: 'dall-e-3' has been retired; gpt-image-1 is the current image
-      // model and returns images as base64 (b64_json) rather than a URL.
-      const response = await openai.images.generate({
-        model: "gpt-image-1",
-        prompt: generatedPrompt,
-        n: 1,
-        quality: "high",
-        size: "1024x1024",
-      });
+      const result = await generateImageWithSafetyFallback(prompt, generatedPrompt);
+      const response = result.response;
+      generatedPrompt = result.generatedPrompt;
+
+      sendEvent({ status: 'creating-thumbnail' });
 
       const imageId = uuidv4();
       const buffer = Buffer.from(response.data[0].b64_json, 'base64');
@@ -216,16 +362,25 @@ app.post('/api/generate-image', async (req, res) => {
     console.log('Data stored in KV');
 
     console.log('Image generation completed');
-    res.json({
-      imageUrl: imageUrl,
-      thumbnailUrl: thumbnailUrl,
-      generatedPrompt: generatedPrompt,
-      originalPrompt: prompt,
-      createdAt: metadata.createdAt
+    sendEvent({
+      status: 'done',
+      result: {
+        imageUrl: imageUrl,
+        thumbnailUrl: thumbnailUrl,
+        generatedPrompt: generatedPrompt,
+        originalPrompt: prompt,
+        createdAt: metadata.createdAt
+      }
     });
   } catch (error) {
     console.error('Error in /api/generate-image:', error);
-    res.status(500).json({ error: 'Failed to generate image', details: error.message });
+    if (error.isSafetyBlocked) {
+      sendEvent({ status: 'error', error: error.message });
+    } else {
+      sendEvent({ status: 'error', error: 'Failed to generate image', details: error.message });
+    }
+  } finally {
+    res.end();
   }
 });
 
@@ -276,7 +431,12 @@ app.get('/api/gallery', async (req, res) => {
     }
   } else {
     console.log('Using in-memory gallery items');
-    res.json(galleryItems);
+    // Newest first, to match the blob-store branch above (items are pushed
+    // in generation order, which isn't necessarily newest-createdAt-first).
+    const sortedItems = [...galleryItems].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    res.json(sortedItems);
   }
 });
 
