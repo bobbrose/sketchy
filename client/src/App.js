@@ -176,6 +176,7 @@ function App() {
       let buffer = '';
       let result = null;
       let serverError = null;
+      let creatingThumbnailAt = null;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -195,7 +196,20 @@ function App() {
             serverError = event.error;
           } else if (STATUS_TEXT[event.status]) {
             setStatusMessage(STATUS_TEXT[event.status]);
+            if (event.status === 'creating-thumbnail') {
+              creatingThumbnailAt = Date.now();
+            }
           }
+        }
+      }
+
+      // "Creating thumbnail" is the last message before done/error, and it's
+      // normally a fast step - hold it on screen for a minimum stretch so it
+      // doesn't just flash past unread.
+      if (creatingThumbnailAt) {
+        const remaining = 2000 - (Date.now() - creatingThumbnailAt);
+        if (remaining > 0) {
+          await new Promise(resolve => setTimeout(resolve, remaining));
         }
       }
 
