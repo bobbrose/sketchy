@@ -220,7 +220,8 @@ app.post('/api/generate-image', async (req, res) => {
       imageUrl: imageUrl,
       thumbnailUrl: thumbnailUrl,
       generatedPrompt: generatedPrompt,
-      originalPrompt: prompt
+      originalPrompt: prompt,
+      createdAt: metadata.createdAt
     });
   } catch (error) {
     console.error('Error in /api/generate-image:', error);
