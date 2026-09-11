@@ -83,6 +83,21 @@ button:disabled {
 }
 
 .gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.gallery-date-header {
+  margin: 0 0 8px;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.gallery-date-items {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
