@@ -273,15 +273,25 @@ function App() {
 
   // `gallery` is already sorted newest-first (see fetchGallery), so a single
   // pass grouping consecutive same-day items keeps both the section order
-  // and the item order within each section correct.
+  // and the item order within each section correct. Anything older than 6
+  // months collapses into one trailing "Older" section instead of a
+  // day-by-day breakdown, so a gallery with a long history doesn't turn
+  // into an endless list of one-off date headers.
   const galleryByDate = useMemo(() => {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
     const groups = [];
     let currentDayKey = null;
     gallery.forEach((item) => {
       const date = item.createdAt ? new Date(item.createdAt) : null;
-      const dayKey = date && !isNaN(date.getTime()) ? date.toDateString() : 'unknown';
+      const isOld = date && !isNaN(date.getTime()) && date < sixMonthsAgo;
+      const dayKey = isOld
+        ? 'older'
+        : (date && !isNaN(date.getTime()) ? date.toDateString() : 'unknown');
       if (dayKey !== currentDayKey || !groups.length) {
-        groups.push({ dayKey, label: formatDateHeader(item.createdAt), items: [] });
+        const label = isOld ? 'Older' : formatDateHeader(item.createdAt);
+        groups.push({ dayKey, label, items: [] });
         currentDayKey = dayKey;
       }
       groups[groups.length - 1].items.push(item);

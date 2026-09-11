@@ -397,7 +397,7 @@ app.get('/api/gallery', async (req, res) => {
         .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
       // Limit the number of items to process and return
-      const MAX_ITEMS = 20;
+      const MAX_ITEMS = 150;
       const limitedBlobs = mainBlobs.slice(0, MAX_ITEMS);
 
       const galleryItems = await Promise.all(limitedBlobs.map(async (blob) => {
