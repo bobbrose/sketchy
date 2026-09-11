@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -7,18 +7,48 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 
   console.log('API_BASE_URL:', API_BASE_URL);
 
+// The common "share" glyph (three connected nodes), rendered inline so no
+// icon library/asset is needed.
+const ShareIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="18" cy="5" r="3"></circle>
+    <circle cx="6" cy="12" r="3"></circle>
+    <circle cx="18" cy="19" r="3"></circle>
+    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+  </svg>
+);
 
 function App() {
   const [prompt, setPrompt] = useState('');
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [image, setImage] = useState(null);
   const [generatedPrompt, setGeneratedPrompt] = useState('');
+  const [createdAt, setCreatedAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [toast, setToast] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [cachedImages, setCachedImages] = useState({});
+
+  // Image URL passed in via ?image= on load, so a shared link opens straight
+  // to that image. Read once on mount; enriched with its prompt/date below
+  // once the gallery loads.
+  const [sharedImageUrl] = useState(
+    () => new URLSearchParams(window.location.search).get('image')
+  );
+  const sharedImageEnriched = useRef(false);
 
   const cacheImage = useCallback((imageUrl) => {
     if (!cachedImages[imageUrl]) {
@@ -67,17 +97,44 @@ function App() {
     fetchGallery();
   }, [fetchGallery]);
 
+  // Show the shared image right away, before the gallery has even loaded.
+  useEffect(() => {
+    if (sharedImageUrl) {
+      setImage(sharedImageUrl);
+      cacheImage(sharedImageUrl);
+    }
+    // Only ever run this for the URL the page loaded with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Once the gallery loads, fill in the shared image's prompt/date if we
+  // have it on record.
+  useEffect(() => {
+    if (!sharedImageUrl || sharedImageEnriched.current || !gallery.length) return;
+    const match = gallery.find(
+      item => item.imageUrl === sharedImageUrl || item.thumbnailUrl === sharedImageUrl
+    );
+    if (match) {
+      setOriginalPrompt(match.originalPrompt || '');
+      setGeneratedPrompt(match.generatedPrompt || '');
+      setCreatedAt(match.createdAt || null);
+      sharedImageEnriched.current = true;
+    }
+  }, [gallery, sharedImageUrl]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setGeneratedPrompt('');
     setImage(null); // Clear the previous image
+    setCreatedAt(null);
     try {
       const response = await axios.post(`${API_BASE_URL}/generate-image`, { prompt });
       setImage(response.data.imageUrl);
       setGeneratedPrompt(response.data.generatedPrompt);
       setOriginalPrompt(response.data.originalPrompt);
+      setCreatedAt(response.data.createdAt);
       fetchGallery();
     } catch (error) {
       console.error('Error generating image:', error);
@@ -92,17 +149,33 @@ function App() {
     setGeneratedPrompt(item.generatedPrompt || '');
     setOriginalPrompt(item.originalPrompt || '');
     setImage(item.imageUrl || null);
+    setCreatedAt(item.createdAt || null);
+  };
+
+  const formatCreatedAt = (isoString) => {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return null;
+    return date.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
   };
 
   const handleShare = () => {
     if (!image) return;
-    const imageUrl = image;
-    navigator.clipboard.writeText(imageUrl).then(() => {
-      setToast('Image URL copied to clipboard');
+    // Link to the app itself with this image's URL attached, so opening the
+    // link brings this image up instead of just the raw image file.
+    const shareUrl = new URL(window.location.href);
+    shareUrl.search = '';
+    shareUrl.searchParams.set('image', image);
+
+    navigator.clipboard.writeText(shareUrl.toString()).then(() => {
+      setToast('Share link copied to clipboard');
       setTimeout(() => setToast(null), 3000); // Clear toast after 3 seconds
     }, (err) => {
       console.error('Could not copy text: ', err);
-      setToast('Failed to copy URL. Please try again.');
+      setToast('Failed to copy link. Please try again.');
     });
   };
 
@@ -116,22 +189,20 @@ function App() {
       {isAboutOpen && (
         <div className="about-popup">
           <div className="about-content">
-            <h2>About Soundscapes</h2>
-            <p>Soundscapes is a project that generates images inspired by bands and songs using AI.</p>
+            <h2>Soundscapes</h2>
+            <p>Soundscapes is a project that generates images inspired by bands and songs.</p>
             <p>
               <a href="https://github.com/bobbrose/sketchy" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
             </p>
             <p>
               <a href="https://bobbrose.com" target="_blank" rel="noopener noreferrer">Created by Bob Rose</a>
             </p>
-            <p>
-              Open source, available under the MIT License. Feel free to clone and contribute or just learn from it.
-            </p>
+            <p>Open source MIT License.</p>
             <p>
               Created images are shared in gallery - no guarantee of quality or permanence. Download and save any images you like if you want to keep them.
             </p>
             <p>
-              This project was developed with the assistance of <a href="https://www.augmentcode.com/" target="_blank" rel="noopener noreferrer">Augment Code</a>, an AI-powered coding assistant.
+              Created with <a href="https://www.augmentcode.com/" target="_blank" rel="noopener noreferrer">Augment Code</a> and <a href="https://claude.com/claude-code" target="_blank" rel="noopener noreferrer">Claude</a>
             </p>
             <button onClick={() => setIsAboutOpen(false)}>Close</button>
           </div>
@@ -170,13 +241,18 @@ function App() {
           {image && !loading && (
             <div className="generated-content">
               <img src={image} alt="Generated content" />
+              {formatCreatedAt(createdAt) && (
+                <p className="created-at">Created {formatCreatedAt(createdAt)}</p>
+              )}
               {generatedPrompt && (
                 <div className="generated-prompt">
                   <h3>Inspired from: "{originalPrompt}"</h3>
                   <p>{generatedPrompt}</p>
                 </div>
               )}
-              <button onClick={handleShare}>Share Image</button>
+              <button className="share-button" onClick={handleShare}>
+                <ShareIcon /> Share
+              </button>
             </div>
           )}
           {!image && !loading && !error && <p>Your generated image will appear here</p>}

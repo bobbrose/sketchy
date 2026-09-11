@@ -1,12 +1,14 @@
 # Sketchy
 
-Create AI-generated artwork inspired by songs and musical artists. This app uses OpenAI's GPT and DALL-E to generate unique visual interpretations of music.
+Create AI-generated artwork inspired by songs and musical artists. This app uses OpenAI's GPT to write a detailed visual description of a song or artist, then an OpenAI image model to turn that description into artwork.
+
+See [docs/vision.md](docs/vision.md) for why it's built this way (and how it differs from just asking a chatbot for "an image of a song"), and [docs/tech-spec.md](docs/tech-spec.md) for how it's built and how to maintain it.
 
 ## Features
 
 - Generate AI artwork from any song or artist name
 - View gallery of previously generated images
-- Share generated images via URL
+- Share generated images via a link back into the app (opens straight to that image)
 - Responsive design that works on mobile and desktop
 - Automatic image optimization and caching
 
@@ -14,17 +16,17 @@ Create AI-generated artwork inspired by songs and musical artists. This app uses
 
 1. Enter a song or artist name
 2. GPT generates a detailed visual description based on the music
-3. DALL-E creates artwork from that description
-4. Image is optimized and stored for sharing
+3. An OpenAI image model (`gpt-image-1`) creates artwork from that description
+4. Image and a thumbnail are generated and stored for sharing
 
 ## Tech Stack
 
 - **Frontend**: React
 - **Backend**: Node.js + Express
-- **AI**: OpenAI (GPT-3.5 + DALL-E 3)
-- **Storage**: 
-  - Images: Vercel Blob Storage
-  - Metadata: Vercel KV (Redis)
+- **AI**: OpenAI (GPT-3.5 + gpt-image-1)
+- **Storage**:
+  - Local dev: filesystem (`server/images/`) + in-memory gallery
+  - Production: Vercel Blob Storage (images) + Vercel KV/Redis (metadata)
 - **Deployment**: Vercel
 
 ## Local Development Setup
@@ -91,7 +93,7 @@ This project is open source under the MIT License. See [LICENSE](LICENSE) for de
 ## Credits
 
 - Created by [Bob Rose](https://bobbrose.com)
-- Developed with assistance from [Augment Code](https://www.augmentcode.com/)
+- Started with assistance from [Augment Code](https://www.augmentcode.com/), now developed with [Claude Code](https://claude.com/claude-code)
 
 ## Support & Feedback
 

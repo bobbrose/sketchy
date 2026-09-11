@@ -115,6 +115,18 @@ button:disabled {
   margin-bottom: 20px;
 }
 
+.created-at {
+  color: #666;
+  font-size: 0.85em;
+  margin: -10px 0 20px;
+}
+
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .about-popup {
   position: fixed;
   top: 0;
