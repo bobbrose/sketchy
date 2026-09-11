@@ -6,7 +6,6 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { OpenAI } from 'openai';
 import fs from 'fs/promises';
-import axios from 'axios';
 import { put, list, del } from '@vercel/blob';
 import { kv } from '@vercel/kv';
 import compression from 'compression';
@@ -106,11 +105,8 @@ async function createThumbnail(imageBuffer) {
   }
 }
 
-async function saveImage(imageUrl, imageId) {
+async function saveImage(buffer, imageId) {
   try {
-    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(response.data, 'binary');
-    
     // Create thumbnail using Jimp
     const thumbnailBuffer = await createThumbnail(buffer);
     
@@ -184,16 +180,19 @@ app.post('/api/generate-image', async (req, res) => {
 
     let imageUrl, thumbnailUrl;
     if (USE_OPENAI_API) {
+      // Note: 'dall-e-3' has been retired; gpt-image-1 is the current image
+      // model and returns images as base64 (b64_json) rather than a URL.
       const response = await openai.images.generate({
-        model: "dall-e-3",
+        model: "gpt-image-1",
         prompt: generatedPrompt,
         n: 1,
-        quality: "standard",
+        quality: "high",
         size: "1024x1024",
       });
 
       const imageId = uuidv4();
-      const urls = await saveImage(response.data[0].url, imageId);
+      const buffer = Buffer.from(response.data[0].b64_json, 'base64');
+      const urls = await saveImage(buffer, imageId);
       imageUrl = urls.imageUrl;
       thumbnailUrl = urls.thumbnailUrl;
     } else {
@@ -377,25 +376,39 @@ app.post('/api/reduce-gallery', checkApiKey, async (req, res) => {
       const { blobs } = await list({ token: BLOB_STORE_ID });
       console.log('Total number of blobs:', blobs.length);
 
-      // Sort blobs by uploadedAt, newest first
-      blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      // Count and sort by main images only, ignoring thumbnail blobs, so
+      // "count" refers to actual gallery items rather than raw blobs (each
+      // item is 2 blobs: the main image + its thumbnail).
+      const mainBlobs = blobs.filter(blob => !blob.pathname.includes('_thumb'));
+      const thumbBlobs = blobs.filter(blob => blob.pathname.includes('_thumb'));
 
-      // Keep only the specified number of most recent blobs
-      const blobsToDelete = blobs.slice(count);
-      console.log('Number of blobs to delete:', blobsToDelete.length);
+      // Sort main blobs by uploadedAt, newest first
+      mainBlobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
-      for (const blob of blobsToDelete) {
-        // Delete the blob
+      // Keep only the specified number of most recent images
+      const mainBlobsToDelete = mainBlobs.slice(count);
+      console.log('Number of images to delete:', mainBlobsToDelete.length);
+
+      for (const blob of mainBlobsToDelete) {
+        // Delete the main image blob
         await del(blob.url, { token: BLOB_STORE_ID });
         console.log('Deleted blob:', blob.url);
 
-        // Delete the corresponding KV entry
+        // Delete the matching thumbnail blob, if any
+        const thumbPathname = blob.pathname.replace(/\.png$/, '_thumb.jpg');
+        const thumbBlob = thumbBlobs.find(t => t.pathname === thumbPathname);
+        if (thumbBlob) {
+          await del(thumbBlob.url, { token: BLOB_STORE_ID });
+          console.log('Deleted thumbnail blob:', thumbBlob.url);
+        }
+
+        // Delete the corresponding KV entry (keyed by main image URL)
         await kv.del(blob.url);
         console.log('Deleted KV entry for:', blob.url);
       }
 
-      res.status(200).json({ 
-        message: `Gallery reduced successfully. Kept ${count} most recent images, deleted ${blobsToDelete.length} images.` 
+      res.status(200).json({
+        message: `Gallery reduced successfully. Kept ${count} most recent images, deleted ${mainBlobsToDelete.length} images.`
       });
     } else {
       // For in-memory storage
