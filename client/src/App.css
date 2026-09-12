@@ -136,10 +136,27 @@ button:disabled {
   margin: -10px 0 20px;
 }
 
+.image-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .share-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.delete-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #b3261e;
+}
+
+.delete-button:hover {
+  background-color: #8f1e18;
 }
 
 .about-popup {
