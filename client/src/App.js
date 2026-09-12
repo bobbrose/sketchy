@@ -7,6 +7,40 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 
   console.log('API_BASE_URL:', API_BASE_URL);
 
+// Anonymous per-browser id, persisted in a cookie, used to tell "an image I
+// made" apart from everyone else's in the shared gallery - no accounts, so
+// this is the only notion of identity the app has. It only works for images
+// generated after this shipped (the server has to have stored a creatorId
+// for it to be checked against), which is an accepted trade-off rather than
+// a bug: nothing before this feature existed carries an owner.
+const CREATOR_ID_COOKIE = 'sketchy_creator_id';
+const CREATOR_ID_COOKIE_MAX_AGE_DAYS = 730; // ~2 years
+
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function setCookie(name, value, maxAgeDays) {
+  const maxAgeSeconds = maxAgeDays * 24 * 60 * 60;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax`;
+}
+
+function getOrCreateCreatorId() {
+  let id = getCookie(CREATOR_ID_COOKIE);
+  if (!id) {
+    id = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setCookie(CREATOR_ID_COOKIE, id, CREATOR_ID_COOKIE_MAX_AGE_DAYS);
+  }
+  return id;
+}
+
+// Computed once at module load, not per-render - it never changes for the
+// life of the tab (or until the cookie expires/is cleared).
+const creatorId = getOrCreateCreatorId();
+
 // The common "share" glyph (three connected nodes), rendered inline so no
 // icon library/asset is needed.
 const ShareIcon = () => (
@@ -26,6 +60,27 @@ const ShareIcon = () => (
     <circle cx="18" cy="19" r="3"></circle>
     <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+  </svg>
+);
+
+// A trash can, for the delete button shown only on images this browser made.
+const DeleteIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="3 6 5 6 21 6"></polyline>
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+    <path d="M10 11v6"></path>
+    <path d="M14 11v6"></path>
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
   </svg>
 );
 
@@ -51,6 +106,9 @@ function App() {
   const [image, setImage] = useState(null);
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [createdAt, setCreatedAt] = useState(null);
+  // Whether the image currently shown in the right panel was made by this
+  // browser (see the creatorId cookie above) - gates the delete button.
+  const [isOwnImage, setIsOwnImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState(null);
@@ -86,7 +144,9 @@ function App() {
 
   const fetchGallery = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/gallery`);
+      // creatorId lets the server tell us which items (if any) are ours,
+      // via isOwner on each item - it never sends back anyone's raw id.
+      const response = await axios.get(`${API_BASE_URL}/gallery`, { params: { creatorId } });
       let galleryItems = [];
 
       if (Array.isArray(response.data)) {
@@ -141,6 +201,7 @@ function App() {
       setOriginalPrompt(match.originalPrompt || '');
       setGeneratedPrompt(match.generatedPrompt || '');
       setCreatedAt(match.createdAt || null);
+      setIsOwnImage(!!match.isOwner);
       sharedImageEnriched.current = true;
     }
   }, [gallery, sharedImageUrl]);
@@ -152,6 +213,7 @@ function App() {
     setGeneratedPrompt('');
     setImage(null); // Clear the previous image
     setCreatedAt(null);
+    setIsOwnImage(false);
 
     setStatusMessage('Generating inspiration');
 
@@ -168,7 +230,7 @@ function App() {
       const res = await fetch(`${API_BASE_URL}/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, creatorId }),
       });
 
       const reader = res.body.getReader();
@@ -222,6 +284,7 @@ function App() {
         setGeneratedPrompt(result.generatedPrompt);
         setOriginalPrompt(result.originalPrompt);
         setCreatedAt(result.createdAt);
+        setIsOwnImage(true); // just generated it ourselves
         fetchGallery();
       } else {
         setError('Failed to generate image. Please try again.');
@@ -241,6 +304,7 @@ function App() {
     setOriginalPrompt(item.originalPrompt || '');
     setImage(item.imageUrl || null);
     setCreatedAt(item.createdAt || null);
+    setIsOwnImage(!!item.isOwner);
   };
 
   const formatCreatedAt = (isoString) => {
@@ -314,6 +378,37 @@ function App() {
       console.error('Could not copy text: ', err);
       setToast('Failed to copy link. Please try again.');
     });
+  };
+
+  const handleDeleteImage = async () => {
+    if (!image || !isOwnImage) return;
+    if (!window.confirm('Delete this image? This cannot be undone.')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/my-image`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: image, creatorId }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete image');
+      }
+
+      setImage(null);
+      setGeneratedPrompt('');
+      setOriginalPrompt('');
+      setCreatedAt(null);
+      setIsOwnImage(false);
+      fetchGallery();
+      setToast('Image deleted');
+      setTimeout(() => setToast(null), 3000);
+    } catch (err) {
+      console.error('Error deleting image:', err);
+      setToast(err.message || 'Failed to delete image. Please try again.');
+      setTimeout(() => setToast(null), 3000);
+    }
   };
 
   return (
@@ -394,9 +489,16 @@ function App() {
                   <p>{generatedPrompt}</p>
                 </div>
               )}
-              <button className="share-button" onClick={handleShare}>
-                <ShareIcon /> Share
-              </button>
+              <div className="image-actions">
+                {isOwnImage && (
+                  <button className="delete-button" onClick={handleDeleteImage} title="Delete this image" aria-label="Delete this image">
+                    <DeleteIcon /> Delete
+                  </button>
+                )}
+                <button className="share-button" onClick={handleShare}>
+                  <ShareIcon /> Share
+                </button>
+              </div>
             </div>
           )}
           {!image && !loading && !error && <p>Your generated image will appear here</p>}

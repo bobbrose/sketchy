@@ -4,12 +4,12 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { OpenAI } from 'openai';
 import fs from 'fs/promises';
 import { put, list, del } from '@vercel/blob';
 import { kv } from '@vercel/kv';
 import compression from 'compression';
 import Jimp from 'jimp';
+import { generateArtDirectedPrompt, generateImageWithSafetyFallback, generateMockImage } from './imageGeneration.js';
 
 dotenv.config();
 
@@ -107,11 +107,6 @@ if (process.env.NODE_ENV !== 'production' && imagesDir) {
     });
 }
 
-// Initialize OpenAI API client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const USE_OPENAI_API = process.env.USE_OPENAI_API === 'true';
 const USE_BLOB_STORE = process.env.NODE_ENV === 'production';
 const BLOB_STORE_ID = process.env.BLOB_READ_WRITE_TOKEN;
@@ -187,77 +182,6 @@ async function saveImage(buffer, imageId) {
   }
 }
 
-async function generateMockImage(prompt) {
-  return `https://placehold.co/600x400?text=${encodeURIComponent(prompt)}`;
-}
-
-function isSafetySystemRejection(error) {
-  return typeof error?.message === 'string' && error.message.includes('safety system');
-}
-
-// Note: 'dall-e-3' has been retired; the gpt-image family is current and
-// returns images as base64 (b64_json) rather than a URL.
-// - "medium" quality instead of "high": OpenAI's own docs put roughly a 15x
-//   gap in tokens (and latency/cost) between low and high at the same
-//   resolution - high is the slow, "production asset" tier, not what an
-//   interactive wait-and-watch UI wants. Medium is the balanced middle.
-// - moderation: "low" loosens (doesn't disable) the content filter, so
-//   fewer prompts trip the safety system and need the fallback chain below
-//   at all - a real latency win given how often it was firing.
-async function generateImageFromPrompt(promptText) {
-  return openai.images.generate({
-    model: "gpt-image-1",
-    prompt: promptText,
-    n: 1,
-    quality: "medium",
-    size: "1024x1024",
-    moderation: "low",
-  });
-}
-
-// Asks GPT to rewrite a prompt so it no longer names or otherwise identifies
-// any real, specific person - last-resort fallback for when even a
-// simplified prompt still gets flagged for describing someone's likeness.
-async function removeNamedIndividuals(promptText) {
-  const rewritePrompt = `Rewrite the following so it no longer names or otherwise identifies any real, specific person (remove names, nicknames, and initials that refer to them), while keeping the same mood, setting, and visual style, under 500 characters: "${promptText}"`;
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: rewritePrompt }],
-  });
-  return completion.choices[0].message.content.trim();
-}
-
-// Tries the art-directed prompt, then a simplified one, then one with any
-// named real person stripped out - each step only runs after the previous
-// one is specifically rejected by OpenAI's safety system (any other error
-// propagates immediately). Returns the response and whichever prompt
-// actually produced it; throws a friendly, user-facing error if all three
-// are blocked.
-async function generateImageWithSafetyFallback(originalPrompt, artDirectedPrompt) {
-  const simplifiedPrompt = `${originalPrompt} show an image that represents what someone might think of when seeing this prompt`;
-
-  for (const candidatePrompt of [artDirectedPrompt, simplifiedPrompt]) {
-    try {
-      const response = await generateImageFromPrompt(candidatePrompt);
-      return { response, generatedPrompt: candidatePrompt };
-    } catch (error) {
-      if (!isSafetySystemRejection(error)) throw error;
-      console.warn('Image rejected by safety system, trying next fallback:', error.message);
-    }
-  }
-
-  const namelessPrompt = `${await removeNamedIndividuals(originalPrompt)} show an image that represents what someone might think of when seeing this prompt`;
-  try {
-    const response = await generateImageFromPrompt(namelessPrompt);
-    return { response, generatedPrompt: namelessPrompt };
-  } catch (error) {
-    if (!isSafetySystemRejection(error)) throw error;
-    const friendlyError = new Error("Sorry, this image can't be generated.");
-    friendlyError.isSafetyBlocked = true;
-    throw friendlyError;
-  }
-}
-
 // Per-IP rate limit for the one endpoint that actually costs money (it
 // calls OpenAI). Backed by Vercel KV rather than an in-memory counter,
 // since serverless invocations don't share memory - a fresh instance would
@@ -284,7 +208,7 @@ async function checkRateLimit(ip) {
 }
 
 app.post('/api/generate-image', async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, creatorId } = req.body;
 
   const clientIp = getClientIp(req);
   if (!(await checkRateLimit(clientIp))) {
@@ -306,21 +230,11 @@ app.post('/api/generate-image', async (req, res) => {
   const sendEvent = (data) => res.write(JSON.stringify(data) + '\n');
 
   try {
-    // Generate prompt using ChatGPT
+    // Generate prompt using ChatGPT (see imageGeneration.js for the "art
+    // direction" step and why it uses gpt-4o-mini)
     let generatedPrompt;
     if (USE_OPENAI_API) {
-      const wrappedPrompt = `Create a vivid and detailed description for an image based on the following song or band, under 500 characters, keep it safe and non explicit, use the band's iconography, album art style, color palette, or unique graphics if available: "${prompt}". The description should describe the song or artist in vivid detail with specific references to the song or something distinctive about the artist so an image can be generated from the description. Favor mood, setting, symbolic or stylized visual elements (an iconic outfit or prop, a stage setup, an album-cover aesthetic, a silhouette) over describing any real person's actual face or likeness. If there is an iconic logo or visual reference for the band, include that in the image.`;
-      // gpt-4o-mini instead of the older/weaker gpt-3.5-turbo: similar cost
-      // and speed, but noticeably better at following the detailed art
-      // direction instructions above instead of regressing to something
-      // generic - this prompt is the whole differentiator of the app, so
-      // its quality matters more than the image model's.
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: wrappedPrompt }],
-      });
-
-      generatedPrompt = completion.choices[0].message.content.trim();
+      generatedPrompt = await generateArtDirectedPrompt(prompt);
       console.log('Generated prompt:', generatedPrompt);
     } else {
       generatedPrompt = prompt;
@@ -330,7 +244,7 @@ app.post('/api/generate-image', async (req, res) => {
 
     let imageUrl, thumbnailUrl;
     if (USE_OPENAI_API) {
-      const result = await generateImageWithSafetyFallback(prompt, generatedPrompt);
+      const result = await generateImageWithSafetyFallback(generatedPrompt);
       const response = result.response;
       generatedPrompt = result.generatedPrompt;
 
@@ -352,6 +266,11 @@ app.post('/api/generate-image', async (req, res) => {
       imageUrl: imageUrl,
       thumbnailUrl: thumbnailUrl,
       createdAt: new Date().toISOString(),
+      // Anonymous per-browser id (see the cookie in App.js), used only to
+      // let someone delete their own image later via /api/my-image. Not
+      // sent back in the client-facing response - the client already knows
+      // its own id.
+      creatorId: typeof creatorId === 'string' ? creatorId : null,
     };
 
     // Add to gallery
@@ -386,6 +305,8 @@ app.post('/api/generate-image', async (req, res) => {
 
 // Gallery endpoint, not protected, anyone can view the gallery items
 app.get('/api/gallery', async (req, res) => {
+  const requestingCreatorId = typeof req.query.creatorId === 'string' ? req.query.creatorId : null;
+
   if (USE_BLOB_STORE) {
     try {
       const { blobs } = await list({ token: BLOB_STORE_ID });
@@ -409,13 +330,20 @@ app.get('/api/gallery', async (req, res) => {
             thumbnailUrl: metadata.thumbnailUrl || metadata.imageUrl, // Fallback to main image if no thumbnail
             originalPrompt: metadata.originalPrompt,
             generatedPrompt: metadata.generatedPrompt,
-            createdAt: metadata.createdAt
+            createdAt: metadata.createdAt,
+            // Never echo the raw creatorId - this is a public, unauthenticated
+            // endpoint, so broadcasting it would let anyone read another
+            // visitor's id and spoof it to delete their images. Only whether
+            // *this* requester (identified by their own ?creatorId= query
+            // param) matches is safe to reveal.
+            isOwner: !!requestingCreatorId && metadata.creatorId === requestingCreatorId
           };
         } else {
           return {
             imageUrl: blob.url,
             thumbnailUrl: blob.url, // Fallback to main image if no thumbnail
-            createdAt: blob.uploadedAt
+            createdAt: blob.uploadedAt,
+            isOwner: false // no metadata means no recorded creatorId either
           };
         }
       }));
@@ -433,9 +361,15 @@ app.get('/api/gallery', async (req, res) => {
     console.log('Using in-memory gallery items');
     // Newest first, to match the blob-store branch above (items are pushed
     // in generation order, which isn't necessarily newest-createdAt-first).
-    const sortedItems = [...galleryItems].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    const sortedItems = [...galleryItems]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      // Same reasoning as the blob-store branch: strip the raw creatorId
+      // and replace it with a per-requester isOwner flag instead, so this
+      // public endpoint never broadcasts anyone's id.
+      .map(({ creatorId, ...item }) => ({
+        ...item,
+        isOwner: !!requestingCreatorId && creatorId === requestingCreatorId
+      }));
     res.json(sortedItems);
   }
 });
@@ -484,6 +418,16 @@ async function removeImage(imageUrl) {
       await del(pathname, { token: BLOB_STORE_ID });
       console.log('Blob deleted successfully');
 
+      // Also delete the matching thumbnail blob, if any (mirrors the
+      // pairing logic in /api/reduce-gallery) - otherwise it's orphaned.
+      const thumbPathname = pathname.replace(/\.png$/, '_thumb.jpg');
+      try {
+        await del(thumbPathname, { token: BLOB_STORE_ID });
+        console.log('Thumbnail blob deleted successfully');
+      } catch (thumbError) {
+        console.warn('No matching thumbnail blob to delete (or already gone):', thumbError.message);
+      }
+
       // Remove the metadata from KV store
       await kv.del(imageUrl);
       console.log('Metadata removed from KV store');
@@ -521,6 +465,43 @@ app.delete('/api/remove-image', checkApiKey, async (req, res) => {
     res.json({ message: 'Image removed successfully' });
   } else {
     res.status(500).json({ error: 'Failed to remove image' });
+  }
+});
+
+// Lets a visitor delete an image they made themselves, identified by the
+// anonymous creatorId cookie set client-side (see App.js) - not admin-gated,
+// ownership is the check instead. This is a soft check, not real auth: a
+// client that already knew someone else's creatorId could spoof it, but
+// there's no login system here, and /api/gallery deliberately never
+// broadcasts anyone's raw creatorId (see the isOwner computation there), so
+// there's no way to learn one just by using the app normally. An acceptable
+// bar for a hobby app's "let people clean up their own stuff" feature.
+app.delete('/api/my-image', async (req, res) => {
+  const { imageUrl, creatorId: requestingCreatorId } = req.body;
+
+  if (!imageUrl || !requestingCreatorId) {
+    return res.status(400).json({ error: 'imageUrl and creatorId are required' });
+  }
+
+  let ownerCreatorId;
+  if (USE_BLOB_STORE) {
+    const metadata = await kv.get(imageUrl);
+    ownerCreatorId = metadata?.creatorId;
+  } else {
+    const item = galleryItems.find(item => item.imageUrl === imageUrl);
+    ownerCreatorId = item?.creatorId;
+  }
+
+  if (!ownerCreatorId || ownerCreatorId !== requestingCreatorId) {
+    return res.status(403).json({ error: 'You can only delete images you created' });
+  }
+
+  const success = await removeImage(imageUrl);
+
+  if (success) {
+    res.json({ message: 'Image deleted successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to delete image' });
   }
 });
 
