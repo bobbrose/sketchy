@@ -118,11 +118,37 @@ button:disabled {
   align-items: center;
 }
 
-.generated-content img {
-  max-width: 100%;
-  max-height: 60vh;
-  object-fit: contain;
+.generated-image-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  /* Reserves a stable box immediately, before either image below has
+     loaded/has known dimensions - both fill it via position: absolute. */
+  aspect-ratio: 1 / 1;
   margin-bottom: 20px;
+}
+
+.generated-image-wrapper img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.generated-image-placeholder {
+  object-fit: cover; /* blurred backdrop - any cropping is imperceptible */
+  filter: blur(20px);
+  transform: scale(1.1); /* hides the blur's soft edge at the box boundary */
+}
+
+.generated-image {
+  object-fit: contain; /* the real image, shown in full once loaded */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.generated-image.loaded {
+  opacity: 1;
 }
 
 .generated-prompt {

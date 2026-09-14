@@ -104,6 +104,14 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [image, setImage] = useState(null);
+  // The matching (small, fast) thumbnail for `image`, shown blurred-up as a
+  // placeholder while the full-resolution image loads - see the render
+  // below. Vercel Blob's shared/edge cache tops out at 5 minutes (confirmed
+  // by testing - not something we can configure higher), so a full image
+  // nobody's viewed in the last 5 minutes has to be re-fetched from cold
+  // storage; this just makes that wait look intentional instead of stuck.
+  const [imageThumbnail, setImageThumbnail] = useState(null);
+  const [isFullImageLoaded, setIsFullImageLoaded] = useState(false);
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [createdAt, setCreatedAt] = useState(null);
   // Whether the image currently shown in the right panel was made by this
@@ -180,7 +188,17 @@ function App() {
     fetchGallery();
   }, [fetchGallery]);
 
+  // A new full-size image always starts "not loaded" so the blur-up
+  // placeholder (see the render below) shows again for it, even if a
+  // previous image had already finished loading.
+  useEffect(() => {
+    setIsFullImageLoaded(false);
+  }, [image]);
+
   // Show the shared image right away, before the gallery has even loaded.
+  // Its thumbnail isn't known yet at this point (only the gallery has that),
+  // so the blur-up placeholder just doesn't show until the effect below
+  // fills it in.
   useEffect(() => {
     if (sharedImageUrl) {
       setImage(sharedImageUrl);
@@ -198,6 +216,7 @@ function App() {
       item => item.imageUrl === sharedImageUrl || item.thumbnailUrl === sharedImageUrl
     );
     if (match) {
+      setImageThumbnail(match.thumbnailUrl || null);
       setOriginalPrompt(match.originalPrompt || '');
       setGeneratedPrompt(match.generatedPrompt || '');
       setCreatedAt(match.createdAt || null);
@@ -212,6 +231,7 @@ function App() {
     setError(null);
     setGeneratedPrompt('');
     setImage(null); // Clear the previous image
+    setImageThumbnail(null);
     setCreatedAt(null);
     setIsOwnImage(false);
 
@@ -281,6 +301,7 @@ function App() {
         setError(serverError);
       } else if (result) {
         setImage(result.imageUrl);
+        setImageThumbnail(result.thumbnailUrl || null);
         setGeneratedPrompt(result.generatedPrompt);
         setOriginalPrompt(result.originalPrompt);
         setCreatedAt(result.createdAt);
@@ -303,6 +324,7 @@ function App() {
     setGeneratedPrompt(item.generatedPrompt || '');
     setOriginalPrompt(item.originalPrompt || '');
     setImage(item.imageUrl || null);
+    setImageThumbnail(item.thumbnailUrl || null);
     setCreatedAt(item.createdAt || null);
     setIsOwnImage(!!item.isOwner);
   };
@@ -397,6 +419,7 @@ function App() {
       }
 
       setImage(null);
+      setImageThumbnail(null);
       setGeneratedPrompt('');
       setOriginalPrompt('');
       setCreatedAt(null);
@@ -479,7 +502,26 @@ function App() {
           {error && <p className="error">{error}</p>}
           {image && !loading && (
             <div className="generated-content">
-              <img src={image} alt="Generated content" />
+              <div className="generated-image-wrapper">
+                {/* Blurred-up thumbnail placeholder: shown only until the
+                    full image finishes loading, and only when we actually
+                    have a distinct (smaller, likely-already-cached)
+                    thumbnail to show - not the exact same file again. */}
+                {imageThumbnail && imageThumbnail !== image && !isFullImageLoaded && (
+                  <img
+                    src={imageThumbnail}
+                    alt=""
+                    aria-hidden="true"
+                    className="generated-image-placeholder"
+                  />
+                )}
+                <img
+                  src={image}
+                  alt="Generated content"
+                  className={`generated-image${isFullImageLoaded ? ' loaded' : ''}`}
+                  onLoad={() => setIsFullImageLoaded(true)}
+                />
+              </div>
               {formatCreatedAt(createdAt) && (
                 <p className="created-at">Created {formatCreatedAt(createdAt)}</p>
               )}
