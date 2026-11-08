@@ -240,7 +240,8 @@ function App() {
     setCreatedAt(null);
     setIsOwnImage(false);
 
-    setStatusMessage('Generating inspiration');
+    // Echo what was typed so the wait clearly reflects the request.
+    setStatusMessage(`Generating inspiration for “${prompt.trim()}”`);
 
     // The server streams progress as newline-delimited JSON, so each status
     // below reflects a real backend transition rather than a guessed delay -
@@ -314,6 +315,7 @@ function App() {
         setOriginalPrompt(result.originalPrompt);
         setCreatedAt(result.createdAt);
         setIsOwnImage(true); // just generated it ourselves
+        setPrompt(''); // clear the entry field, ready for the next one (kept on error so it can be retried)
         fetchGallery();
       } else {
         setError('Failed to generate image. Please try again.');
