@@ -148,8 +148,13 @@ function isSafetySystemRejection(error) {
   return typeof error?.message === 'string' && error.message.includes('safety system');
 }
 
-// Note: 'dall-e-3' has been retired; the gpt-image family is current and
-// returns images as base64 (b64_json) rather than a URL.
+// Note: 'dall-e-3' and (as of Nov 2026) 'gpt-image-1' have both been
+// retired - OpenAI returns "400 The model 'gpt-image-1' does not exist."
+// gpt-image-1.5 is its direct successor: same params, same b64_json
+// response, and a like-for-like test (Sam Bush, medium/low) rendered in
+// ~13s with the same painterly style, vs ~37s for gpt-image-2 (see
+// docs/image-gen-notes.md for why gpt-image-2's latency and polish were
+// already rejected; the Vercel function's maxDuration is 60s).
 // - "medium" quality instead of "high": OpenAI's own docs put roughly a 15x
 //   gap in tokens (and latency/cost) between low and high at the same
 //   resolution - high is the slow, "production asset" tier, not what an
@@ -159,7 +164,7 @@ function isSafetySystemRejection(error) {
 //   at all - a real latency win given how often it was firing.
 async function generateImageFromPrompt(promptText) {
   return openai.images.generate({
-    model: "gpt-image-1",
+    model: "gpt-image-1.5",
     prompt: promptText,
     n: 1,
     quality: "medium",
