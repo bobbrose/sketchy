@@ -782,3 +782,22 @@ decision-relevant finding across all 15 prompts now tested.
 across 5 rounds is a large enough sample that this isn't provisional
 anymore absent a specific reason to revisit (a gpt-image-2 speed
 improvement, or a deliberate move toward a more photographic house style).
+### 2026-11-07: gpt-image-1 retired, moved to gpt-image-1.5
+
+Production started failing every generation with `400 The model
+'gpt-image-1' does not exist.` (the client only showed "Failed to generate
+image" - the real error is in the streamed event's `details` field). The
+art-direction step (`gpt-4o-mini`) was unaffected.
+
+Ran a like-for-like test on one Sam Bush art-directed prompt with the
+production settings (medium quality, `moderation: "low"`, 1024x1024):
+
+- `gpt-image-1.5`: ~13s, painterly/textured, on brief (correct mandolin).
+- `gpt-image-2`: ~37s, more polished and slightly more photographic.
+
+**Decision: `gpt-image-1.5`.** It's the direct successor, takes the same
+params, returns the same `b64_json`, keeps the house style chosen above,
+and leaves plenty of headroom under the 60s Vercel `maxDuration` -
+`gpt-image-2` plus art direction plus thumbnailing would sit uncomfortably
+close to it. Only one prompt was compared, so if the style drifts, rerun
+the 15-prompt set against it.

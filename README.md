@@ -16,14 +16,14 @@ See [docs/vision.md](docs/vision.md) for why it's built this way (and how it dif
 
 1. Enter a song or artist name
 2. GPT generates a detailed visual description based on the music
-3. An OpenAI image model (`gpt-image-1`) creates artwork from that description
+3. An OpenAI image model (`gpt-image-1.5`) creates artwork from that description
 4. Image and a thumbnail are generated and stored for sharing
 
 ## Tech Stack
 
 - **Frontend**: React
 - **Backend**: Node.js + Express
-- **AI**: OpenAI (GPT-3.5 + gpt-image-1)
+- **AI**: OpenAI (GPT-3.5 + gpt-image-1.5)
 - **Storage**:
   - Local dev: filesystem (`server/images/`) + in-memory gallery
   - Production: Vercel Blob Storage (images) + Vercel KV/Redis (metadata)

@@ -11,7 +11,7 @@ from scratch. See [vision.md](vision.md) for *why* it works this way.
 │  (client/)  │ ◀───────────────────────────── │   (server/)      │
 └─────────────┘   GET  /api/gallery            └──────────────────┘
                                                         │      │
-                                        gpt-3.5-turbo   │      │  gpt-image-1
+                                        gpt-3.5-turbo   │      │  gpt-image-1.5
                                      (writes the prompt) │      │ (renders the image)
                                                         ▼      ▼
                                                     OpenAI API
@@ -40,7 +40,7 @@ only has convenience scripts that shell out to both.
    `wrappedPrompt` constant in `server.js` for the exact wording. This is the "art
    direction" step described in vision.md. If `USE_OPENAI_API=false`, this step is
    skipped and the raw input is used as-is (mock mode).
-2. **Prompt → image.** The generated description is sent to `gpt-image-1`
+2. **Prompt → image.** The generated description is sent to `gpt-image-1.5`
    (`openai.images.generate`, `quality: "high"`, `size: "1024x1024"`). This model
    returns the image as base64 (`response.data[0].b64_json`), **not** a URL — that's
    a difference from the older `dall-e-3` model this code originally used, and it's
@@ -177,7 +177,7 @@ Local secrets live in `server/.env` (git-ignored) and, for `vercel dev`/CLI use,
 
 ## Known inconsistencies / things to check before changing behavior
 
-- **`gpt-image-1` vs. the older `dall-e-3`**: OpenAI's image models are still
+- **`gpt-image-1.5` (was `gpt-image-1`, retired Nov 2026; before that `dall-e-3`)**: OpenAI's image models are still
   evolving; if `/api/generate-image` starts returning `"model ... does not exist"`
   again, it likely means the model name needs bumping again, and it's worth
   re-checking whether the new model still returns `b64_json` vs. a `url` — the
