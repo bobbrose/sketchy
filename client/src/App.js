@@ -120,6 +120,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [error, setError] = useState(null);
+  // The server's underlying error text (e.g. "400 The model 'x' does not
+  // exist."), shown under the friendly message so a failure is diagnosable
+  // from the UI without digging through logs.
+  const [errorDetails, setErrorDetails] = useState(null);
   const [gallery, setGallery] = useState([]);
   const [toast, setToast] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -229,6 +233,7 @@ function App() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     setGeneratedPrompt('');
     setImage(null); // Clear the previous image
     setImageThumbnail(null);
@@ -258,6 +263,7 @@ function App() {
       let buffer = '';
       let result = null;
       let serverError = null;
+      let serverErrorDetails = null;
       let creatingThumbnailAt = null;
 
       while (true) {
@@ -276,6 +282,7 @@ function App() {
             result = event.result;
           } else if (event.status === 'error') {
             serverError = event.error;
+            serverErrorDetails = event.details || null;
           } else if (STATUS_TEXT[event.status]) {
             setStatusMessage(STATUS_TEXT[event.status]);
             if (event.status === 'creating-thumbnail') {
@@ -299,6 +306,7 @@ function App() {
         // Use the server's own message (e.g. the friendly "Sorry, this image
         // can't be generated." for a blocked prompt).
         setError(serverError);
+        setErrorDetails(serverErrorDetails);
       } else if (result) {
         setImage(result.imageUrl);
         setImageThumbnail(result.thumbnailUrl || null);
@@ -313,6 +321,7 @@ function App() {
     } catch (error) {
       console.error('Error generating image:', error);
       setError('Failed to generate image. Please try again.');
+      setErrorDetails(error.message || null);
     } finally {
       setStatusMessage('');
       setLoading(false);
@@ -499,7 +508,12 @@ function App() {
         </div>
         <div className="panel right-panel">
           {loading && <p>{statusMessage}<AnimatedDots /></p>}
-          {error && <p className="error">{error}</p>}
+          {error && (
+            <div className="error">
+              <p>{error}</p>
+              {errorDetails && <p className="error-details">{errorDetails}</p>}
+            </div>
+          )}
           {image && !loading && (
             <div className="generated-content">
               <div className="generated-image-wrapper">

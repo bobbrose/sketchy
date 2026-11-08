@@ -223,3 +223,13 @@ button:disabled {
   border-radius: 5px;
   z-index: 1000;
 }
+
+/* The server's underlying error (e.g. a retired model name), shown under
+   the friendly message - smaller and muted so it reads as diagnostic info. */
+.error-details {
+  margin-top: 4px;
+  font-size: 0.8em;
+  font-family: ui-monospace, Menlo, monospace;
+  opacity: 0.7;
+  overflow-wrap: anywhere;
+}
